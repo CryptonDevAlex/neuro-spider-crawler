@@ -15,15 +15,18 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 | --- | --- |
 | `app/api/routes/crawl.py` | HTTP: crear scan, consultar resultado, suscribirse a SSE y descargar Markdown |
 | `app/services/crawler_service.py` | Orquestación del flujo, modo auditoría y emisión de eventos |
-| `app/crawler/policy.py` | Profundidad, páginas, delay, timeout y User-Agent |
+| `app/crawler/policy.py` | Profundidad, páginas, delay, timeout y User-Agent Chrome |
 | `app/crawler/browser.py` | Ciclo de vida del navegador Playwright |
-| `app/crawler/spider.py` | Recorrido BFS y control de visitados |
+| `app/crawler/url.py` | Normalización de entrada, HTTP→HTTPS y resolución de destino |
+| `app/crawler/tls.py` | Verificación estricta adicional y hallazgo por certificado inválido |
+| `app/crawler/spider.py` | Recorrido BFS, control de visitados y errores por página sin abortar |
 | `app/crawler/extractors.py` | Formularios, inputs, enlaces, scripts, parámetros y HTML |
 | `app/analysis/discovery.py` | Lectura de `robots.txt` y `sitemap.xml` como recon |
 | `app/analysis/headers.py` | Comprobación de cabeceras de seguridad |
 | `app/analysis/secrets.py` | Búsqueda enmascarada de tokens, claves, correos y rutas internas |
 | `app/analysis/technologies.py` | Servidor, frameworks y cookies |
 | `app/analysis/analyzer.py` | Consolidación de hallazgos, severidades y diagnóstico |
+| `app/analysis/executive_summary.py` | Diagnóstico con OpenAI/Gemini opcional y fallback local |
 | `app/services/export_service.py` | Informe Markdown profesional |
 
 ## Componentes del frontend
@@ -44,7 +47,7 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 - **SSE en lugar de WebSockets:** el flujo es unidireccional (servidor → cliente) y SSE simplifica reconexión y proxies.
 - **Playwright:** permite ejecutar JavaScript y extraer superficie en páginas dinámicas.
 - **Modo auditoría:** `robots.txt` y `sitemap.xml` no bloquean; amplían el inventario del reconocimiento autorizado.
-- **Reglas locales:** el análisis de secretos y configuración se hace sin enviar contenido a proveedores externos.
+- **Reglas locales por defecto:** el análisis de secretos y configuración se hace sin enviar contenido a proveedores externos. Si se configura `OPENAI_API_KEY` o `GEMINI_API_KEY`, solo se envía un resumen estructurado de hallazgos para redactar el diagnóstico ejecutivo.
 - **Evidencia enmascarada:** los posibles secretos se truncan para no exponerlos en pantalla ni en el informe.
 - **Deduplicación en cliente:** evita duplicados cuando EventSource se reconecta y reproduce eventos previos.
 

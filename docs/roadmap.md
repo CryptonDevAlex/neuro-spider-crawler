@@ -31,8 +31,13 @@
 - [x] Botón MARKDOWN con informe profesional
 - [x] Pruebas unitarias y verificaciones de calidad
 
-## Fase 4 — Robustez futura
+## Fase 4 — Robustez para Internet real
 
+- [x] Normalización `dominio.com` → `https://dominio.com` y redirecciones HTTP→HTTPS
+- [x] User-Agent Chrome moderno en Playwright y `httpx`
+- [x] Continuidad ante timeouts, `403`, `429` y errores por página
+- [x] Hallazgo `ALTO` por certificado TLS vencido o autofirmado
+- [x] Diagnóstico ejecutivo con OpenAI/Gemini opcional y fallback local
 - [ ] Persistencia opcional de resultados
 - [ ] Configuración de reglas por perfil de cliente
 - [ ] Exportación PDF

@@ -13,8 +13,10 @@ El usuario ingresa una URL autorizada, un backend con **FastAPI + Playwright** r
 - Archivos JavaScript, comentarios HTML, correos, tokens, claves y rutas internas.
 - Tecnologías detectadas, frameworks y cookies sin `HttpOnly` o `Secure`.
 - `robots.txt` y `sitemap.xml` como fuentes de descubrimiento, sin bloquear el análisis.
+- Certificados TLS vencidos o autofirmados como hallazgo de severidad `ALTO`, sin detener el escaneo.
+- Errores `403`, `429`, timeouts y fallos de navegación por página como eventos `error`, continuarando con el resto del alcance.
 
-El frontend **Next.js + Tailwind** muestra en tiempo real el mapa animado de la araña, métricas, hallazgos por severidad y un **Diagnóstico Ejecutivo de Seguridad Pasiva**.
+La URL se normaliza automáticamente: `ejemplo.com` se convierte en `https://ejemplo.com` y se siguen redirecciones HTTP→HTTPS. El frontend **Next.js + Tailwind** muestra en tiempo real el mapa animado de la araña, métricas, hallazgos por severidad y un **Diagnóstico Ejecutivo de Seguridad Pasiva** generado por reglas locales o, si se configura una clave, por OpenAI/Gemini.
 
 ## Arquitectura
 
@@ -123,7 +125,7 @@ neuro-spider-crawler/
 | Capa | Tecnologías |
 | --- | --- |
 | Backend | Python 3.12+, FastAPI, Playwright, Pydantic v2, pytest |
-| Análisis | Reglas locales para cabeceras, secretos, tecnologías y descubrimiento |
+| Análisis | Reglas locales para cabeceras, secretos, tecnologías y descubrimiento; diagnóstico opcional con OpenAI/Gemini |
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS, Zustand |
 | Tiempo real | Server-Sent Events (SSE) |
 | Calidad | Conventional Commits, ruff/mypy, ESLint/tsc |
@@ -146,6 +148,24 @@ npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
 Frontend: `http://127.0.0.1:3000` · Backend: `http://127.0.0.1:8000/docs`
+
+### Configuración opcional de IA
+
+Copia `backend/.env.example` a `backend/.env` y configura una de estas opciones:
+
+- `OPENAI_API_KEY`: habilita el diagnóstico con OpenAI (modelo por defecto `gpt-4o-mini`).
+- `GEMINI_API_KEY`: habilita el diagnóstico con Gemini (modelo por defecto `gemini-2.5-flash`).
+- `LLM_PROVIDER=auto`: usa OpenAI primero, luego Gemini, y recurre a reglas locales si no hay clave o falla la llamada.
+- `LLM_API_KEY` y `LLM_MODEL`: compatibilidad con un endpoint OpenAI-compatible mediante `OPENAI_BASE_URL`.
+
+Sin claves, el motor local genera el mismo diagnóstico estructurado y el informe marca el motor como `Reglas locales`. Las claves nunca se envían al frontend ni se incluyen en el informe.
+
+### Resiliencia de red
+
+- User-Agent de Chrome moderno en Playwright y `httpx`.
+- Redirecciones seguidas automáticamente con validación TLS permisiva para no perder objetivos con certificados inválidos.
+- Verificación TLS estricta adicional para convertir certificados vencidos, autofirmados o incorrectos en un hallazgo `ALTO`.
+- Continuidad del escaneo ante `401`, `403`, `429`, errores `5xx`, timeouts y errores DNS/conexión por página.
 
 ## Uso responsable
 

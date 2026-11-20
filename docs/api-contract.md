@@ -58,7 +58,10 @@ Ejemplo:
 
 ```text
 event: finding
-data: {"type":"finding","scan_id":"...","finding":{"id":"header-content-security-policy","severity":"ALTO","category":"Cabeceras HTTP","title":"Cabecera ausente: Content-Security-Policy", ... }}
+data: {"type":"finding","scan_id":"...","finding":{"id":"tls-certificate-ejemplo-com","severity":"ALTO","category":"TLS/SSL","title":"Certificado TLS inválido detectado", ... }}
+
+event: summary
+data: {"type":"summary","scan_id":"...","engine":"openai","severity_counts":{...}, ...}
 
 event: done
 data: {"type":"done","scan_id":"...","pages_scanned":4,"findings_total":12,"duration_ms":4210,"export_ready":true}
@@ -71,7 +74,15 @@ data: {"type":"done","scan_id":"...","pages_scanned":4,"findings_total":12,"dura
 | `INVALID_URL` | URL mal formada o no http(s) |
 | `NAVIGATION_TIMEOUT` | Playwright agotó el timeout |
 | `NAVIGATION_ERROR` | No se pudo navegar a la página |
+| `TLS_ERROR` | Fallo TLS al abrir la página |
+| `CONNECTION_REFUSED` | El servidor rechazó la conexión |
+| `DNS_ERROR` | No se pudo resolver el dominio |
+| `HTTP_401` / `HTTP_403` | Acceso no autorizado; el scan continúa |
+| `HTTP_429` | Límite de peticiones; el scan continúa |
+| `HTTP_500`+ | Error del servidor; el scan continúa |
 | `SCAN_FAILED` | Fallo general del reconocimiento |
+
+Los errores por página son informativos y no detienen el escaneo. El evento `summary` incluye `engine`, con valor `local-rules`, `openai` o `gemini`.
 
 ## Notas de alcance
 
