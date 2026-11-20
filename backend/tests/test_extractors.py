@@ -2,7 +2,8 @@ from app.analysis.headers import analyze_headers
 from app.analysis.secrets import scan_text
 from app.crawler.policy import CrawlPolicy
 from app.crawler.spider import normalize_url
-from app.models.security import Severity
+from app.crawler.url import normalize_target_input
+from app.models.security import ScanRequest, Severity
 
 
 def test_policy_audit_mode_defaults() -> None:
@@ -15,6 +16,12 @@ def test_policy_audit_mode_defaults() -> None:
 def test_normalize_url() -> None:
     assert normalize_url("https://example.com/a", "/b#section") == "https://example.com/b"
     assert normalize_url("https://example.com", "mailto:x@y.com") == ""
+
+
+def test_normalize_target_input_adds_https() -> None:
+    assert normalize_target_input("dominio.com") == "https://dominio.com"
+    assert normalize_target_input("127.0.0.1:8080") == "http://127.0.0.1:8080"
+    assert ScanRequest(url="dominio.com/path#fragment").url == "https://dominio.com/path"
 
 
 def test_missing_headers_generate_findings() -> None:

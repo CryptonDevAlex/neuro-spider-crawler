@@ -44,6 +44,21 @@ class Spider:
         self.page = page
         self.visited: set[str] = set()
 
+    @staticmethod
+    def _error_code(exc: Exception) -> str:
+        message = str(exc).lower()
+        if "timeout" in message:
+            return "NAVIGATION_TIMEOUT"
+        if "certificate" in message or "ssl" in message or "tls" in message:
+            return "TLS_ERROR"
+        if "err_connection_refused" in message:
+            return "CONNECTION_REFUSED"
+        if "err_name_not_resolved" in message:
+            return "DNS_ERROR"
+        if "err_aborted" in message:
+            return "NAVIGATION_ABORTED"
+        return "NAVIGATION_ERROR"
+
     async def crawl(self, start_url: str) -> AsyncIterator[PageExtract | PageError]:
         queue: deque[tuple[str, int]] = deque([(start_url, 0)])
         start_host = urlparse(start_url).netloc
@@ -66,8 +81,30 @@ class Spider:
                 data = await extract_page_data(self.page)
                 cookies = await self.page.context.cookies()
             except Exception as exc:
-                code = "NAVIGATION_TIMEOUT" if "timeout" in str(exc).lower() else "NAVIGATION_ERROR"
-                yield PageError(url, code, str(exc)[:300])
+                yield PageError(url, self._error_code(exc), str(exc)[:300])
+                continue
+
+            status = response.status if response else 0
+            if status in (401, 403):
+                yield PageError(
+                    url,
+                    f"HTTP_{status}",
+                    f"Acceso no autorizado ({status}) al abrir {url}. Se continúa con el resto del alcance.",
+                )
+                continue
+            if status == 429:
+                yield PageError(
+                    url,
+                    "HTTP_429",
+                    f"Límite de peticiones alcanzado ({status}) en {url}. Se continúa con el resto del alcance.",
+                )
+                continue
+            if status >= 500:
+                yield PageError(
+                    url,
+                    f"HTTP_{status}",
+                    f"Error del servidor ({status}) en {url}. Se continúa con el resto del alcance.",
+                )
                 continue
 
             links = [

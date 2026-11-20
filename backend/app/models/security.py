@@ -2,7 +2,9 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
+
+from app.crawler.url import normalize_target_input
 
 
 class Severity(str, Enum):
@@ -21,10 +23,15 @@ class ScanStatus(str, Enum):
 
 
 class ScanRequest(BaseModel):
-    url: HttpUrl
+    url: str = Field(min_length=1)
     max_depth: int = Field(default=2, ge=1, le=4)
     max_pages: int = Field(default=20, ge=1, le=100)
     audit_mode: bool = True
+
+    @field_validator("url")
+    @classmethod
+    def normalize_url(cls, value: str) -> str:
+        return normalize_target_input(value)
 
 
 class ScanAccepted(BaseModel):
@@ -91,6 +98,7 @@ class SecuritySummary(BaseModel):
     severity_counts: dict[str, int] = Field(default_factory=dict)
     remediation_priorities: list[str] = Field(default_factory=list)
     scope: dict[str, int] = Field(default_factory=dict)
+    engine: str = "local-rules"
 
 
 class ScanResult(BaseModel):

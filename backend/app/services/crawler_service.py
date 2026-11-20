@@ -14,6 +14,8 @@ from app.core.events import ScanPhase
 from app.crawler.browser import BrowserSession
 from app.crawler.policy import CrawlPolicy
 from app.crawler.spider import PageError, Spider
+from app.crawler.tls import inspect_target_tls
+from app.crawler.url import resolve_target_url
 from app.models.events import (
     DoneEvent,
     ErrorEvent,
@@ -137,11 +139,14 @@ class ScanService:
         return forms
 
     @staticmethod
-    async def _fetch_js(urls: list[str]) -> list[tuple[str, str]]:
+    async def _fetch_js(urls: list[str], user_agent: str) -> list[tuple[str, str]]:
         documents: list[tuple[str, str]] = []
 
         async with httpx.AsyncClient(
-            timeout=8.0, follow_redirects=True, headers={"User-Agent": "NeuroSpider/0.2"}
+            timeout=8.0,
+            follow_redirects=True,
+            verify=False,
+            headers={"User-Agent": user_agent},
         ) as client:
             for url in urls[:25]:
                 try:
@@ -157,7 +162,7 @@ class ScanService:
         policy = self.policy_for(payload)
         started = datetime.now(UTC)
         job.result.status = ScanStatus.RUNNING
-        target = str(payload.url)
+        target = payload.url
 
         html_documents: list[tuple[str, str]] = []
         js_urls: list[str] = []
@@ -169,12 +174,20 @@ class ScanService:
         await self._status(job, ScanPhase.QUEUED, 0, policy.max_pages)
 
         try:
+            target = await resolve_target_url(
+                target, self.settings.navigation_timeout_ms, policy.user_agent
+            )
+            job.result.target = target
+
             async with BrowserSession() as session:
                 if session.browser is None:
                     raise RuntimeError("Navegador no disponible")
 
-                page = await session.browser.new_page()
-                await page.set_extra_http_headers({"User-Agent": policy.user_agent})
+                context = await session.browser.new_context(
+                    user_agent=policy.user_agent,
+                    ignore_https_errors=True,
+                )
+                page = await context.new_page()
                 spider = Spider(policy, page)
 
                 await self._status(job, ScanPhase.DISCOVERING, 0, policy.max_pages)
@@ -244,7 +257,9 @@ class ScanService:
             robots_paths: list[str] = []
             sitemap_paths: list[str] = []
             if payload.audit_mode:
-                robots_paths, sitemap_paths = await discover_recon_paths(target)
+                robots_paths, sitemap_paths = await discover_recon_paths(
+                    target, policy.user_agent
+                )
                 job.result.robots_paths = robots_paths
                 job.result.sitemap_paths = sitemap_paths
                 origin = origin_of(target)
@@ -256,9 +271,16 @@ class ScanService:
 
             js_urls = list(dict.fromkeys(url for url in js_urls if url.startswith(("http://", "https://"))))
             job.result.js_files = js_urls
-            js_documents = await self._fetch_js(js_urls)
+            js_documents = await self._fetch_js(js_urls, policy.user_agent)
 
-            analysis = SecurityAnalyzer().analyze(
+            extra_findings = []
+            tls_finding = await inspect_target_tls(
+                target, self.settings.navigation_timeout_ms, policy.user_agent
+            )
+            if tls_finding is not None:
+                extra_findings.append(tls_finding)
+
+            analysis = await SecurityAnalyzer(self.settings).analyze(
                 AnalysisInput(
                     target=target,
                     audit_mode=payload.audit_mode,
@@ -273,6 +295,7 @@ class ScanService:
                     params=sorted(parameters),
                     robots_paths=robots_paths,
                     sitemap_paths=sitemap_paths,
+                    extra_findings=extra_findings,
                 )
             )
 
@@ -300,6 +323,7 @@ class ScanService:
                     severity_counts=analysis.summary.severity_counts,
                     remediation_priorities=analysis.summary.remediation_priorities,
                     scope=analysis.summary.scope,
+                    engine=analysis.summary.engine,
                     technologies=analysis.technologies,
                     headers=analysis.headers,
                 ),

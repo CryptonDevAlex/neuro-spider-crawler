@@ -9,13 +9,16 @@ def origin_of(url: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}"
 
 
-async def discover_recon_paths(url: str) -> tuple[list[str], list[str]]:
+async def discover_recon_paths(url: str, user_agent: str) -> tuple[list[str], list[str]]:
     origin = origin_of(url)
     robots_paths: list[str] = []
     sitemap_paths: list[str] = []
 
     async with httpx.AsyncClient(
-        timeout=8.0, follow_redirects=True, headers={"User-Agent": "NeuroSpider/0.2"}
+        timeout=8.0,
+        follow_redirects=True,
+        verify=False,
+        headers={"User-Agent": user_agent},
     ) as client:
         try:
             robots = await client.get(f"{origin}/robots.txt")
