@@ -1,12 +1,20 @@
 # NeuroSpider
 
-Web Crawler visual con extracción estructurada y resumen ejecutivo impulsado por IA.
+Reconocimiento web pasivo y OSINT sobre **alcances autorizados**, con mapa visual en vivo, hallazgos de seguridad y exportación de informe Markdown.
 
-> **Estado actual:** Fase 1 — arquitectura base y documentación. La lógica completa de rastreo, IA y visualización en vivo se implementa en la Fase 2.
+> NeuroSpider no realiza explotación activa, escaneo de puertos ni pruebas intrusivas. Úsalo solo sobre sitios propios o con autorización explícita.
 
 ## Objetivo
 
-El usuario ingresa una URL, un backend con **FastAPI + Playwright** rastrea el sitio (contenido, enlaces y tablas) y un **LLM** produce datos estructurados y un resumen ejecutivo. El frontend **Next.js + Tailwind** muestra en una vista dividida el mapa animado del rastreo y el panel de resultados con exportación a JSON/Markdown.
+El usuario ingresa una URL autorizada, un backend con **FastAPI + Playwright** recorre el sitio de forma controlada y analiza:
+
+- Cabeceras de seguridad: CSP, HSTS, X-Frame-Options, X-Content-Type-Options y Referrer-Policy.
+- Formularios, inputs, endpoints y parámetros como superficie de entrada.
+- Archivos JavaScript, comentarios HTML, correos, tokens, claves y rutas internas.
+- Tecnologías detectadas, frameworks y cookies sin `HttpOnly` o `Secure`.
+- `robots.txt` y `sitemap.xml` como fuentes de descubrimiento, sin bloquear el análisis.
+
+El frontend **Next.js + Tailwind** muestra en tiempo real el mapa animado de la araña, métricas, hallazgos por severidad y un **Diagnóstico Ejecutivo de Seguridad Pasiva**.
 
 ## Arquitectura
 
@@ -14,10 +22,10 @@ El usuario ingresa una URL, un backend con **FastAPI + Playwright** rastrea el s
 flowchart LR
     subgraph Client["Frontend · Next.js + Tailwind"]
         UI["URL Input / Terminal UI"]
-        Hook["useCrawlStream (SSE)"]
+        Hook["useScanStream (SSE)"]
         Map["SpiderMap SVG animado"]
-        Panel["ResultsPanel"]
-        Export["Export JSON / Markdown"]
+        Panel["ResultsPanel / FindingsReport"]
+        Export["MARKDOWN"]
         UI --> Hook
         Hook --> Map
         Hook --> Panel
@@ -25,28 +33,28 @@ flowchart LR
     end
 
     subgraph Server["Backend · FastAPI + Playwright"]
-        API["POST /crawl"]
-        Service["CrawlerService"]
-        Policy["CrawlPolicy (robots, depth, delay)"]
-        Browser["Playwright Browser Pool"]
-        Extract["Extractors: contenido, enlaces, tablas"]
-        LLM["LLM Client + prompts"]
-        Summary["Resumen ejecutivo"]
+        API["POST /scan"]
+        Service["ScanService"]
+        Policy["CrawlPolicy (audit mode, depth, delay)"]
+        Browser["Playwright Browser"]
+        Extract["Extractor de páginas, forms, scripts"]
+        Analysis["Headers / Secrets / Technologies / Recon"]
+        Summary["SecuritySummary"]
         Stream["SSE Event Stream"]
         API --> Service
         Service --> Policy
         Service --> Browser
         Browser --> Extract
-        Extract --> LLM
-        LLM --> Summary
+        Extract --> Analysis
+        Analysis --> Summary
         Service --> Stream
     end
 
-    Store[("Resultado del crawl")]
+    Store[("Resultado del escaneo")]
 
     UI -->|"URL + opciones"| API
     Stream -->|"text/event-stream"| Hook
-    Extract --> Store
+    Analysis --> Store
     Summary --> Store
     Store --> Panel
 ```
@@ -57,40 +65,56 @@ flowchart LR
 sequenceDiagram
     participant UI as Frontend
     participant API as FastAPI
-    participant SVC as CrawlerService
+    participant SVC as ScanService
     participant PW as Playwright
-    participant AI as LLM
+    participant AN as Analyzer
 
-    UI->>API: POST /crawl {url, max_depth, max_pages}
-    API-->>UI: {crawl_id}
-    UI->>API: GET /crawl/{crawl_id}/stream
+    UI->>API: POST /scan {url, max_depth, max_pages, audit_mode}
+    API-->>UI: {scan_id}
+    UI->>API: GET /scan/{scan_id}/stream
     loop por cada página
-        SVC->>PW: navegar y extraer
-        PW-->>SVC: contenido + enlaces + tablas
+        SVC->>PW: navegar y extraer superficie
+        PW-->>SVC: página + formularios + scripts
         SVC-->>UI: event: node
-        SVC->>AI: estructurar + resumir
-        AI-->>SVC: JSON validado
-        SVC-->>UI: event: summary
+        SVC-->>UI: event: finding
     end
+    SVC->>AN: consolidar hallazgos
+    AN-->>SVC: diagnóstico + severidades + remediación
+    SVC-->>UI: event: summary
     SVC-->>UI: event: done
+    UI->>API: GET /scan/{scan_id}/report.md
 ```
+
+## Severidades
+
+| Severidad | Uso |
+| --- | --- |
+| `CRITICO` | Credenciales o secretos probablemente explotables |
+| `ALTO` | Exposición o configuración con impacto elevado |
+| `MEDIO` | Debilidades que requieren corrección planificada |
+| `BAJO` | Información menor o endurecimiento recomendado |
+| `INFO` | Inventario, superficie y evidencia de reconocimiento |
 
 ## Estructura del repositorio
 
 ```text
 neuro-spider-crawler/
-├── backend/                 API, crawler, extracción, IA y modelos
+├── backend/
 │   ├── app/
+│   │   ├── analysis/        analizadores de seguridad y recon
 │   │   ├── api/             rutas HTTP y dependencias
 │   │   ├── core/            configuración, logging, eventos
 │   │   ├── crawler/         Playwright, política, extractores
-│   │   ├── ai/              cliente LLM, prompts, esquemas
 │   │   ├── models/          contratos Pydantic
-│   │   └── services/        orquestación y exportación
+│   │   └── services/        orquestación, SSE y exportación
 │   └── tests/
-├── frontend/                App Router, componentes, hooks y store
+├── frontend/
+│   ├── src/app/
+│   ├── src/components/      UI, mapa, panel de seguridad
+│   ├── src/hooks/           SSE y estado
+│   └── src/lib/             tipos y API
 ├── docs/                    arquitectura, contrato de API, roadmap
-├── AGENTS.md                reglas de desarrollo
+├── AGENTS.md
 └── README.md
 ```
 
@@ -99,12 +123,12 @@ neuro-spider-crawler/
 | Capa | Tecnologías |
 | --- | --- |
 | Backend | Python 3.12+, FastAPI, Playwright, Pydantic v2, pytest |
-| IA | Cliente LLM configurable (OpenAI-compatible), salida validada con Pydantic |
+| Análisis | Reglas locales para cabeceras, secretos, tecnologías y descubrimiento |
 | Frontend | Next.js (App Router), React, TypeScript, Tailwind CSS, Zustand |
 | Tiempo real | Server-Sent Events (SSE) |
-| Calidad | Conventional Commits, ruff/mypy (backend), ESLint/tsc (frontend) |
+| Calidad | Conventional Commits, ruff/mypy, ESLint/tsc |
 
-## Puesta en marcha (Fase 2)
+## Puesta en marcha
 
 ```bash
 # Backend
@@ -113,15 +137,39 @@ py -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
 playwright install chromium
-uvicorn app.main:app --reload --port 8000
+uvicorn app.main:app --host 127.0.0.1 --port 8000
 
 # Frontend
 cd frontend
 npm install
-npm run dev
+npm run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-Frontend: `http://localhost:3000` · Backend: `http://localhost:8000/docs`
+Frontend: `http://127.0.0.1:3000` · Backend: `http://127.0.0.1:8000/docs`
+
+## Uso responsable
+
+Antes de analizar un objetivo, confirma que tienes permiso para hacerlo. NeuroSpider está pensado para:
+
+- Auditorías internas autorizadas.
+- Programas de bug bounty dentro de su alcance.
+- Sitios propios o entornos de prueba.
+
+El informe Markdown incluye una declaración explícita de alcance pasivo y recomendaciones de remediación.
+
+## Verificación
+
+```bash
+cd backend
+pytest -q
+ruff check .
+mypy app
+
+cd ../frontend
+npm run lint
+npm run typecheck
+npm run build
+```
 
 ## Convenciones
 
