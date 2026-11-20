@@ -13,7 +13,7 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 
 | Módulo | Responsabilidad |
 | --- | --- |
-| `app/api/routes/crawl.py` | HTTP: crear scan, consultar resultado, suscribirse a SSE y descargar Markdown |
+| `app/api/routes/crawl.py` | HTTP: crear scan, consultar resultado, suscribirse a SSE y descargar Markdown/PDF |
 | `app/services/crawler_service.py` | Orquestación del flujo, modo auditoría y emisión de eventos |
 | `app/crawler/policy.py` | Profundidad, páginas, delay, timeout y User-Agent Chrome |
 | `app/crawler/browser.py` | Ciclo de vida del navegador Playwright |
@@ -28,6 +28,7 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 | `app/analysis/analyzer.py` | Consolidación de hallazgos, severidades y diagnóstico |
 | `app/analysis/executive_summary.py` | Diagnóstico con OpenAI/Gemini opcional y fallback local |
 | `app/services/export_service.py` | Informe Markdown profesional |
+| `app/services/pdf_service.py` | Informe PDF corporativo con fpdf2 |
 
 ## Componentes del frontend
 
@@ -40,7 +41,7 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 | `src/components/results/MetricsGrid.tsx` | Endpoints/formularios, JS, cabeceras y riesgo |
 | `src/components/results/FindingsReport.tsx` | Panel de severidades y remediación |
 | `src/components/results/TechPanel.tsx` | Tecnologías, cookies y cabeceras |
-| `src/components/results/ExportBar.tsx` | Descarga del informe Markdown |
+| `src/components/results/ExportBar.tsx` | Descarga de informes Markdown y PDF |
 
 ## Decisiones
 

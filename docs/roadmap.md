@@ -28,7 +28,7 @@
 - [x] Detección de tecnologías, frameworks y cookies
 - [x] Diagnóstico ejecutivo con severidades y remediación
 - [x] Métricas de seguridad y panel de hallazgos en el frontend
-- [x] Botón MARKDOWN con informe profesional
+- [x] Botones MARKDOWN y DESCARGAR PDF con informes profesionales
 - [x] Pruebas unitarias y verificaciones de calidad
 
 ## Fase 4 — Robustez para Internet real
@@ -40,5 +40,5 @@
 - [x] Diagnóstico ejecutivo con OpenAI/Gemini opcional y fallback local
 - [ ] Persistencia opcional de resultados
 - [ ] Configuración de reglas por perfil de cliente
-- [ ] Exportación PDF
+- [x] Exportación PDF corporativa con fpdf2
 - [ ] Docker Compose y despliegue

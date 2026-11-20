@@ -1,6 +1,6 @@
 # NeuroSpider
 
-Reconocimiento web pasivo y OSINT sobre **alcances autorizados**, con mapa visual en vivo, hallazgos de seguridad y exportación de informe Markdown.
+Reconocimiento web pasivo y OSINT sobre **alcances autorizados**, con mapa visual en vivo, hallazgos de seguridad y exportación de informes Markdown y PDF corporativo.
 
 > NeuroSpider no realiza explotación activa, escaneo de puertos ni pruebas intrusivas. Úsalo solo sobre sitios propios o con autorización explícita.
 
@@ -27,7 +27,7 @@ flowchart LR
         Hook["useScanStream (SSE)"]
         Map["SpiderMap SVG animado"]
         Panel["ResultsPanel / FindingsReport"]
-        Export["MARKDOWN"]
+        Export["MARKDOWN / PDF"]
         UI --> Hook
         Hook --> Map
         Hook --> Panel
@@ -177,7 +177,7 @@ Antes de analizar un objetivo, confirma que tienes permiso para hacerlo. NeuroSp
 - Programas de bug bounty dentro de su alcance.
 - Sitios propios o entornos de prueba.
 
-El informe Markdown incluye una declaración explícita de alcance pasivo y recomendaciones de remediación.
+Los informes Markdown y PDF incluyen una declaración explícita de alcance pasivo, diagnóstico ejecutivo, tabla de severidades y recomendaciones de remediación.
 
 ## Verificación
 

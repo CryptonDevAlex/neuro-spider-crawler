@@ -39,6 +39,10 @@ Devuelve el resultado parcial o final: páginas, cabeceras, formularios, tecnolo
 
 Descarga el informe Markdown profesional con diagnóstico ejecutivo, severidades, evidencia, superficie identificada y prioridades de remediación.
 
+### `GET /scan/{scan_id}/report.pdf`
+
+Descarga un informe PDF corporativo con encabezado oscuro, resumen ejecutivo, tabla de severidades, detalle de hallazgos, guía técnica de remediación y aviso de reconocimiento pasivo autorizado.
+
 ## Eventos
 
 Todos los eventos llevan `event:` y un payload JSON con `type`, `scan_id` y `timestamp`.
@@ -48,7 +52,7 @@ Todos los eventos llevan `event:` y un payload JSON con `type`, `scan_id` y `tim
 | `status` | `{ phase, pages_done, pages_total }` | Cambio de fase o progreso |
 | `node` | `{ id, url, title, depth, links, forms, scripts, word_count }` | Página detectada y analizada |
 | `finding` | `{ finding: { id, severity, category, title, description, evidence, remediation, target, source } }` | Hallazgo de seguridad detectado |
-| `summary` | `{ executive_diagnosis, severity_counts, remediation_priorities, scope, technologies, headers }` | Análisis consolidado |
+| `summary` | `{ executive_diagnosis, severity_counts, remediation_priorities, scope, engine, technologies, headers }` | Análisis consolidado |
 | `error` | `{ code, message, page_id? }` | Fallo parcial o fatal |
 | `done` | `{ pages_scanned, findings_total, duration_ms, export_ready }` | Finalización |
 
