@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -9,6 +10,7 @@ import httpx
 
 from app.analysis.analyzer import AnalysisInput, SecurityAnalyzer
 from app.analysis.discovery import discover_recon_paths, origin_of
+from app.analysis.subdomains import discover_subdomains
 from app.core.config import Settings
 from app.core.events import ScanPhase
 from app.crawler.browser import BrowserSession
@@ -16,6 +18,8 @@ from app.crawler.policy import CrawlPolicy
 from app.crawler.spider import PageError, Spider
 from app.crawler.tls import inspect_target_tls
 from app.crawler.url import resolve_target_url
+from app.db.database import SessionLocal
+from app.db.repository import save_scan
 from app.models.events import (
     DoneEvent,
     ErrorEvent,
@@ -32,6 +36,8 @@ from app.models.security import (
     ScanResult,
     ScanStatus,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -178,6 +184,7 @@ class ScanService:
                 target, self.settings.navigation_timeout_ms, policy.user_agent
             )
             job.result.target = target
+            job.result.subdomains = await discover_subdomains(target, policy.user_agent)
 
             async with BrowserSession() as session:
                 if session.browser is None:
@@ -295,6 +302,7 @@ class ScanService:
                     params=sorted(parameters),
                     robots_paths=robots_paths,
                     sitemap_paths=sitemap_paths,
+                    subdomains=job.result.subdomains,
                     extra_findings=extra_findings,
                 )
             )
@@ -303,6 +311,7 @@ class ScanService:
             job.result.technologies = analysis.technologies
             job.result.findings = analysis.findings
             job.result.summary = analysis.summary
+            job.result.waf_detections = analysis.waf_detections
 
             await self._status(
                 job,
@@ -326,6 +335,8 @@ class ScanService:
                     engine=analysis.summary.engine,
                     technologies=analysis.technologies,
                     headers=analysis.headers,
+                    subdomains=job.result.subdomains,
+                    waf_detections=analysis.waf_detections,
                 ),
             )
         except Exception as exc:
@@ -353,6 +364,11 @@ class ScanService:
                     export_ready=job.result.status == ScanStatus.COMPLETED,
                 ),
             )
+            try:
+                with SessionLocal() as session:
+                    save_scan(session, job.result)
+            except Exception as exc:
+                logger.warning("No se pudo persistir el escaneo %s: %s", job.scan_id, exc)
             await job.queue.put(None)
 
 

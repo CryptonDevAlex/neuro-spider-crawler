@@ -5,6 +5,7 @@ from app.analysis.executive_summary import build_executive_summary
 from app.analysis.headers import analyze_headers
 from app.analysis.secrets import scan_text
 from app.analysis.technologies import analyze_cookies, detect_frameworks, detect_server
+from app.analysis.waf import detect_waf
 from app.core.config import Settings, get_settings
 from app.models.security import (
     Finding,
@@ -14,6 +15,7 @@ from app.models.security import (
     SecuritySummary,
     Severity,
     Technologies,
+    WafDetection,
 )
 
 
@@ -32,6 +34,7 @@ class AnalysisInput:
     params: list[str]
     robots_paths: list[str]
     sitemap_paths: list[str]
+    subdomains: list[str] = field(default_factory=list)
     extra_findings: list[Finding] = field(default_factory=list)
 
 
@@ -41,6 +44,8 @@ class AnalysisOutput:
     technologies: Technologies
     findings: list[Finding]
     summary: SecuritySummary
+    subdomains: list[str] = field(default_factory=list)
+    waf_detections: list[WafDetection] = field(default_factory=list)
 
 
 class SecurityAnalyzer:
@@ -55,6 +60,8 @@ class SecurityAnalyzer:
         )
         cookies, cookie_findings = analyze_cookies(data.cookies, data.target)
         findings.extend(cookie_findings)
+        waf_detections = detect_waf(data.headers, data.cookies)
+        findings.extend(self._waf_findings(waf_detections, data.target))
 
         for source, text in data.html:
             findings.extend(scan_text(text, source, data.target, "HTML"))
@@ -99,6 +106,7 @@ class SecurityAnalyzer:
             server=detect_server(data.headers),
             frameworks=frameworks,
             cookies=cookies,
+            waf=waf_detections,
         )
 
         return AnalysisOutput(
@@ -112,7 +120,32 @@ class SecurityAnalyzer:
                 scope=scope,
                 engine=narrative.engine,
             ),
+            subdomains=data.subdomains,
+            waf_detections=waf_detections,
         )
+
+    @staticmethod
+    def _waf_findings(detections: list[WafDetection], target: str) -> list[Finding]:
+        return [
+            Finding(
+                id=f"waf-{item.name.lower().replace(' ', '-').replace('/', '-')}",
+                severity=Severity.INFO,
+                category=item.category,
+                title=f"WAF/CDN detectado: {item.name}",
+                description=(
+                    "La huella de la capa de protección se identificó mediante cabeceras y cookies "
+                    "expuestas durante el reconocimiento pasivo."
+                ),
+                evidence=item.evidence,
+                remediation=(
+                    "Documentar la capa de protección y verificar que no sustituye el endurecimiento "
+                    "de la aplicación de origen."
+                ),
+                target=target,
+                source=target,
+            )
+            for item in detections
+        ]
 
     @staticmethod
     def _dedupe(findings: list[Finding]) -> list[Finding]:

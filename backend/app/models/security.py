@@ -75,10 +75,17 @@ class CookieInfo(BaseModel):
     same_site: str | None = None
 
 
+class WafDetection(BaseModel):
+    name: str
+    evidence: str
+    category: str = "WAF/CDN"
+
+
 class Technologies(BaseModel):
     server: str | None = None
     frameworks: list[str] = Field(default_factory=list)
     cookies: list[CookieInfo] = Field(default_factory=list)
+    waf: list[WafDetection] = Field(default_factory=list)
 
 
 class Finding(BaseModel):
@@ -115,4 +122,6 @@ class ScanResult(BaseModel):
     findings: list[Finding] = Field(default_factory=list)
     robots_paths: list[str] = Field(default_factory=list)
     sitemap_paths: list[str] = Field(default_factory=list)
+    subdomains: list[str] = Field(default_factory=list)
+    waf_detections: list[WafDetection] = Field(default_factory=list)
     summary: SecuritySummary | None = None

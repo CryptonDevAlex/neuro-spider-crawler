@@ -4,7 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.core.events import EventType
-from app.models.security import Finding, SecurityHeader, Technologies
+from app.models.security import Finding, SecurityHeader, Technologies, WafDetection
 
 
 class EventBase(BaseModel):
@@ -46,6 +46,8 @@ class SummaryEvent(EventBase):
     engine: str
     technologies: Technologies
     headers: list[SecurityHeader]
+    subdomains: list[str] = []
+    waf_detections: list[WafDetection] = []
 
 
 class ErrorEvent(EventBase):

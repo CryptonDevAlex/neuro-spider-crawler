@@ -161,6 +161,23 @@ def to_pdf(result: ScanResult) -> bytes:
     add_meta(pdf, "Cabeceras ausentes", scope.get("missing_headers", 0))
     pdf.ln(4)
 
+    add_section(pdf, "WAF/CDN identificado")
+    if result.waf_detections:
+        for detection in result.waf_detections:
+            add_meta(pdf, detection.name, detection.evidence)
+    else:
+        write_paragraph(pdf, "No se identificó huella de WAF o CDN en el alcance analizado.", 5)
+    pdf.ln(4)
+
+    add_section(pdf, "Subdominios por Certificate Transparency")
+    if result.subdomains:
+        for index in range(0, len(result.subdomains), 8):
+            group = result.subdomains[index : index + 8]
+            write_paragraph(pdf, ", ".join(group), 5)
+    else:
+        write_paragraph(pdf, "No se publicaron subdominios adicionales en certificados.", 5)
+    pdf.ln(4)
+
     for severity in SEVERITY_ORDER:
         findings = [item for item in result.findings if item.severity == severity]
         if not findings:
