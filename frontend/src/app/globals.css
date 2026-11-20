@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: #06090f;
+  color: #d8e2f0;
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.3);
+}
+
+.spider-web {
+  fill: none;
+  stroke: #22d3ee;
+  stroke-opacity: 0.16;
+}
+
+.spider-thread {
+  stroke: #22d3ee;
+  stroke-opacity: 0.38;
+  stroke-width: 1;
+  stroke-dasharray: 4 6;
+}
+
+.spider-node {
+  fill: #34d399;
+  filter: drop-shadow(0 0 6px #34d399);
+}
+
+.spider-shell {
+  fill: #0b111c;
+  stroke: #22d3ee;
+  stroke-width: 2;
+}
+
+.spider-leg {
+  stroke: #22d3ee;
+  stroke-width: 2;
+  stroke-linecap: round;
+  transform-origin: 300px 300px;
+  animation: leg-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes leg-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.97) rotate(0deg);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02) rotate(2deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spider-leg {
+    animation: none;
+  }
+}
+
+.scanline {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent 0px,
+    transparent 3px,
+    rgba(34, 211, 238, 0.025) 4px
+  );
+  pointer-events: none;
+}
