@@ -13,7 +13,10 @@ class Settings(BaseSettings):
     app_name: str = "NeuroSpider"
     environment: str = "development"
     debug: bool = True
-    cors_origins: list[str] = ["http://localhost:3000"]
+    cors_origins: list[str] = [
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ]
 
     llm_provider: str = "openai-compatible"
     llm_api_key: str = ""

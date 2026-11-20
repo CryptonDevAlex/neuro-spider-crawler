@@ -4,11 +4,12 @@ from uuid import UUID
 from pydantic import BaseModel
 
 from app.core.events import EventType
+from app.models.security import Finding, SecurityHeader, Technologies
 
 
 class EventBase(BaseModel):
     type: EventType
-    crawl_id: UUID
+    scan_id: UUID
     timestamp: datetime
 
 
@@ -26,32 +27,36 @@ class NodeEvent(EventBase):
     title: str
     depth: int
     links: int
+    forms: int
+    scripts: int
     word_count: int
 
 
-class TableEvent(EventBase):
-    type: EventType = EventType.TABLE
-    node_id: str
-    headers: list[str]
-    rows: list[list[str]]
+class FindingEvent(EventBase):
+    type: EventType = EventType.FINDING
+    finding: Finding
 
 
 class SummaryEvent(EventBase):
     type: EventType = EventType.SUMMARY
-    executive_summary: str
-    key_points: list[str]
-    entities: list[str]
+    executive_diagnosis: str
+    severity_counts: dict[str, int]
+    remediation_priorities: list[str]
+    scope: dict[str, int]
+    technologies: Technologies
+    headers: list[SecurityHeader]
 
 
 class ErrorEvent(EventBase):
     type: EventType = EventType.ERROR
     code: str
     message: str
-    node_id: str | None = None
+    page_id: str | None = None
 
 
 class DoneEvent(EventBase):
     type: EventType = EventType.DONE
-    pages_crawled: int
+    pages_scanned: int
+    findings_total: int
     duration_ms: int
     export_ready: bool

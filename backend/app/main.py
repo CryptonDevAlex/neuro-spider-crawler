@@ -19,7 +19,8 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.1.0",
+        version="0.2.0",
+        description="Reconocimiento web pasivo y OSINT sobre alcances autorizados.",
         lifespan=lifespan,
     )
     application.add_middleware(

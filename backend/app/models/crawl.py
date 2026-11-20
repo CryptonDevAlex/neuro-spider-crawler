@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl
 
 
 class CrawlStatus(str, Enum):
@@ -14,8 +14,8 @@ class CrawlStatus(str, Enum):
 
 class CrawlRequest(BaseModel):
     url: HttpUrl
-    max_depth: int = 2
-    max_pages: int = 30
+    max_depth: int = Field(default=2, ge=1, le=5)
+    max_pages: int = Field(default=30, ge=1, le=200)
     respect_robots: bool = True
 
 
@@ -54,8 +54,8 @@ class ExecutiveSummary(BaseModel):
 class CrawlResult(BaseModel):
     crawl_id: UUID
     status: CrawlStatus
-    nodes: list[PageNode] = []
-    tables: list[TableData] = []
+    nodes: list[PageNode] = Field(default_factory=list)
+    tables: list[TableData] = Field(default_factory=list)
     summary: ExecutiveSummary | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None

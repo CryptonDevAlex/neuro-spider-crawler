@@ -4,15 +4,15 @@ from enum import Enum
 class EventType(str, Enum):
     STATUS = "status"
     NODE = "node"
-    TABLE = "table"
+    FINDING = "finding"
     SUMMARY = "summary"
     ERROR = "error"
     DONE = "done"
 
 
-class CrawlPhase(str, Enum):
+class ScanPhase(str, Enum):
     QUEUED = "queued"
-    NAVIGATING = "navigating"
-    EXTRACTING = "extracting"
-    SUMMARIZING = "summarizing"
+    DISCOVERING = "discovering"
+    ANALYZING = "analyzing"
+    REPORTING = "reporting"
     FINISHED = "finished"
