@@ -1,5 +1,6 @@
 import json
 import logging
+from dataclasses import dataclass
 
 import httpx
 from pydantic import BaseModel, Field
@@ -22,6 +23,12 @@ class ExecutiveNarrative(BaseModel):
     engine: str = "local-rules"
 
 
+@dataclass(frozen=True)
+class LLMResult:
+    content: str
+    model: str
+
+
 async def build_executive_summary(
     target: str,
     findings: list[Finding],
@@ -33,7 +40,7 @@ async def build_executive_summary(
 
     if provider and api_key:
         try:
-            content = await _request_llm(
+            result = await _request_llm(
                 provider=provider,
                 api_key=api_key,
                 target=target,
@@ -42,7 +49,10 @@ async def build_executive_summary(
                 scope=scope,
                 settings=settings,
             )
-            return _parse_response(content, engine=_engine_label(settings, provider))
+            return _parse_response(
+                result.content,
+                engine=_engine_label(settings, provider, result.model),
+            )
         except Exception as exc:
             logger.warning(
                 "LLM summary failed with %s; falling back to local rules",
@@ -117,17 +127,26 @@ def _resolve_provider(settings: Settings) -> tuple[str | None, str]:
     return None, ""
 
 
-def _engine_label(settings: Settings, provider: str) -> str:
+def _engine_label(settings: Settings, provider: str, model: str | None = None) -> str:
     if provider != "openai":
         return provider
 
     base_url = settings.openai_base_url.lower()
-    model = (settings.llm_model or settings.openai_model).lower()
-    if "groq" in base_url:
-        if "llama-3.3" in model:
-            return "Groq (Llama 3.3)"
-        return "Groq"
-    return "openai"
+    selected_model = (model or settings.llm_model or settings.openai_model).lower()
+    if "groq" not in base_url:
+        return "openai"
+
+    if "llama-3.3" in selected_model:
+        return "Groq (Llama 3.3)"
+    if "llama-3.1" in selected_model:
+        return "Groq (Llama 3.1)"
+    if "gpt-oss-120b" in selected_model:
+        return "Groq (GPT-OSS 120B)"
+    if "gpt-oss-20b" in selected_model:
+        return "Groq (GPT-OSS 20B)"
+    if "qwen" in selected_model:
+        return "Groq (Qwen 3.8)"
+    return "Groq"
 
 
 async def _request_llm(
@@ -138,31 +157,42 @@ async def _request_llm(
     severity_counts: dict[str, int],
     scope: dict[str, int],
     settings: Settings,
-) -> str:
+) -> LLMResult:
     user_prompt = _build_prompt(target, findings, severity_counts, scope)
 
     async with httpx.AsyncClient(timeout=30.0) as client:
         if provider == "openai":
+            base_url = settings.openai_base_url.rstrip("/")
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
             model = settings.llm_model or settings.openai_model
-            response = await client.post(
-                f"{settings.openai_base_url.rstrip('/')}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    "temperature": 0.2,
-                },
-            )
+            payload = {
+                "model": model,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "temperature": 0.2,
+            }
+
+            response = await client.post(f"{base_url}/chat/completions", headers=headers, json=payload)
+            if _is_model_not_found(response):
+                resolved_model = await _first_chat_model(client, base_url, headers, model)
+                if resolved_model:
+                    logger.info("Configured LLM model unavailable; using %s", resolved_model)
+                    model = resolved_model
+                    payload["model"] = resolved_model
+                    response = await client.post(
+                        f"{base_url}/chat/completions",
+                        headers=headers,
+                        json=payload,
+                    )
+
             response.raise_for_status()
-            return str(
-                response.json()["choices"][0]["message"]["content"]
-            )
+            content = str(response.json()["choices"][0]["message"]["content"])
+            return LLMResult(content=content, model=model)
 
         model = settings.llm_model or settings.gemini_model
         response = await client.post(
@@ -180,7 +210,50 @@ async def _request_llm(
             },
         )
         response.raise_for_status()
-        return str(response.json()["candidates"][0]["content"]["parts"][0]["text"])
+        content = str(response.json()["candidates"][0]["content"]["parts"][0]["text"])
+        return LLMResult(content=content, model=model)
+
+
+def _is_model_not_found(response: httpx.Response) -> bool:
+    return response.status_code == 404
+
+
+async def _first_chat_model(
+    client: httpx.AsyncClient,
+    base_url: str,
+    headers: dict[str, str],
+    configured_model: str,
+) -> str | None:
+    response = await client.get(f"{base_url}/models", headers=headers)
+    if response.status_code != 200:
+        return None
+
+    payload = response.json()
+    excluded = (
+        "whisper",
+        "orpheus",
+        "prompt-guard",
+        "safeguard",
+        "tts",
+        "embedding",
+        "transcription",
+    )
+
+    for item in payload.get("data", []):
+        if not isinstance(item, dict):
+            continue
+        model_id = str(item.get("id") or "")
+        lowered = model_id.lower()
+        if not model_id or model_id == configured_model:
+            continue
+        if any(marker in lowered for marker in excluded):
+            continue
+        if "text" in (item.get("input_modalities") or []) and "text" in (
+            item.get("output_modalities") or []
+        ):
+            return model_id
+
+    return None
 
 
 def _build_prompt(

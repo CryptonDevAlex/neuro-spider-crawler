@@ -4,6 +4,7 @@ playwright>=1.49
 pydantic>=2.10
 pydantic-settings>=2.7
 httpx>=0.28
+fpdf2>=2.8
 pytest>=8.3
 pytest-asyncio>=0.25
 ruff>=0.9

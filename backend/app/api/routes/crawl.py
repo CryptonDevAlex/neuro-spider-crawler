@@ -2,12 +2,13 @@ from collections.abc import AsyncIterator
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import PlainTextResponse, StreamingResponse
+from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 
 from app.api.deps import get_scan_service
 from app.models.security import ScanAccepted, ScanRequest, ScanResult
 from app.services.crawler_service import ScanService
 from app.services.export_service import to_markdown
+from app.services.pdf_service import to_pdf
 
 router = APIRouter(prefix="/scan", tags=["scan"])
 
@@ -35,6 +36,24 @@ async def get_report(
         media_type="text/markdown; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="neurospider-{scan_id}.md"'
+        },
+    )
+
+
+@router.get("/{scan_id}/report.pdf", response_class=Response)
+async def get_pdf_report(
+    scan_id: UUID,
+    service: ScanService = Depends(get_scan_service),
+) -> Response:
+    result = await service.get(scan_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Escaneo no encontrado")
+
+    return Response(
+        content=to_pdf(result),
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="neurospider-audit-{scan_id}.pdf"'
         },
     )
 
