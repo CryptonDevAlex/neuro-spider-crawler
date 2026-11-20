@@ -21,6 +21,9 @@ export function SummaryCard() {
   return (
     <div className="space-y-4 rounded border border-terminal-border bg-terminal-bg/60 p-4">
       <div className="flex flex-wrap gap-2">
+        <Badge tone={summary.engine === "local-rules" ? "neutral" : "accent"}>
+          {summary.engine === "local-rules" ? "Diagnóstico local" : `IA: ${summary.engine}`}
+        </Badge>
         {SEVERITIES.map((severity) => (
           <Badge key={severity} tone={severityTone(severity)}>
             {severity}: {formatNumber(summary.severity_counts[severity] ?? 0)}

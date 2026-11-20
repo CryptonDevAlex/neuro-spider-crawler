@@ -97,6 +97,7 @@ export const useScanStore = create<ScanState>((set) => ({
               severity_counts: event.severity_counts,
               remediation_priorities: event.remediation_priorities,
               scope: event.scope,
+              engine: event.engine,
             },
             technologies: event.technologies,
             headers: Array.from(

@@ -73,6 +73,7 @@ export interface SecuritySummary {
   severity_counts: Record<string, number>;
   remediation_priorities: string[];
   scope: Record<string, number>;
+  engine: string;
 }
 
 export interface ScanResult {
@@ -126,6 +127,7 @@ export interface SummaryEvent extends EventBase {
   severity_counts: Record<string, number>;
   remediation_priorities: string[];
   scope: Record<string, number>;
+  engine: string;
   technologies: Technologies;
   headers: SecurityHeader[];
 }
