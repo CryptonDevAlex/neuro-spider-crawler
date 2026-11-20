@@ -153,10 +153,12 @@ Frontend: `http://127.0.0.1:3000` · Backend: `http://127.0.0.1:8000/docs`
 
 Copia `backend/.env.example` a `backend/.env` y configura una de estas opciones:
 
-- `OPENAI_API_KEY`: habilita el diagnóstico con OpenAI (modelo por defecto `gpt-4o-mini`).
+- `OPENAI_API_KEY`: habilita el diagnóstico con OpenAI o un proveedor compatible.
+- `OPENAI_BASE_URL`: endpoint compatible con OpenAI; el ejemplo usa Groq en `https://api.groq.com/openai/v1`.
+- `OPENAI_MODEL`: modelo del endpoint; el ejemplo usa `llama-3.3-70b-versatile` y se muestra como `Groq (Llama 3.3)`.
 - `GEMINI_API_KEY`: habilita el diagnóstico con Gemini (modelo por defecto `gemini-2.5-flash`).
-- `LLM_PROVIDER=auto`: usa OpenAI primero, luego Gemini, y recurre a reglas locales si no hay clave o falla la llamada.
-- `LLM_API_KEY` y `LLM_MODEL`: compatibilidad con un endpoint OpenAI-compatible mediante `OPENAI_BASE_URL`.
+- `LLM_PROVIDER=auto`: usa OpenAI/Groq primero, luego Gemini, y recurre a reglas locales si no hay clave o falla la llamada.
+- `LLM_API_KEY` y `LLM_MODEL`: alternativas genéricas para endpoints OpenAI-compatible.
 
 Sin claves, el motor local genera el mismo diagnóstico estructurado y el informe marca el motor como `Reglas locales`. Las claves nunca se envían al frontend ni se incluyen en el informe.
 

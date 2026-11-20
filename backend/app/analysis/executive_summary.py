@@ -42,7 +42,7 @@ async def build_executive_summary(
                 scope=scope,
                 settings=settings,
             )
-            return _parse_response(content, engine=provider)
+            return _parse_response(content, engine=_engine_label(settings, provider))
         except Exception as exc:
             logger.warning(
                 "LLM summary failed with %s; falling back to local rules",
@@ -115,6 +115,19 @@ def _resolve_provider(settings: Settings) -> tuple[str | None, str]:
             return "gemini", settings.gemini_api_key
 
     return None, ""
+
+
+def _engine_label(settings: Settings, provider: str) -> str:
+    if provider != "openai":
+        return provider
+
+    base_url = settings.openai_base_url.lower()
+    model = (settings.llm_model or settings.openai_model).lower()
+    if "groq" in base_url:
+        if "llama-3.3" in model:
+            return "Groq (Llama 3.3)"
+        return "Groq"
+    return "openai"
 
 
 async def _request_llm(
