@@ -43,6 +43,7 @@ class SummaryEvent(EventBase):
     severity_counts: dict[str, int]
     remediation_priorities: list[str]
     scope: dict[str, int]
+    engine: str
     technologies: Technologies
     headers: list[SecurityHeader]
 

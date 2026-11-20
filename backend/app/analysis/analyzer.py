@@ -1,9 +1,11 @@
 from collections import Counter
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from app.analysis.executive_summary import build_executive_summary
 from app.analysis.headers import analyze_headers
 from app.analysis.secrets import scan_text
 from app.analysis.technologies import analyze_cookies, detect_frameworks, detect_server
+from app.core.config import Settings, get_settings
 from app.models.security import (
     Finding,
     FormDetail,
@@ -30,6 +32,7 @@ class AnalysisInput:
     params: list[str]
     robots_paths: list[str]
     sitemap_paths: list[str]
+    extra_findings: list[Finding] = field(default_factory=list)
 
 
 @dataclass
@@ -41,7 +44,10 @@ class AnalysisOutput:
 
 
 class SecurityAnalyzer:
-    def analyze(self, data: AnalysisInput) -> AnalysisOutput:
+    def __init__(self, settings: Settings | None = None) -> None:
+        self.settings = settings or get_settings()
+
+    async def analyze(self, data: AnalysisInput) -> AnalysisOutput:
         security_headers, findings = analyze_headers(data.headers, data.target)
 
         frameworks = detect_frameworks(
@@ -56,6 +62,7 @@ class SecurityAnalyzer:
             findings.extend(scan_text(text, source, data.target, "JavaScript"))
 
         findings.extend(self._recon_findings(data))
+        findings.extend(data.extra_findings)
         findings = self._dedupe(findings)
 
         counts = Counter(finding.severity.value for finding in findings)
@@ -80,30 +87,13 @@ class SecurityAnalyzer:
             "sitemap_paths": len(data.sitemap_paths),
         }
 
-        if severity_counts[Severity.CRITICAL.value]:
-            priority_note = (
-                "Existen hallazgos críticos de exposición de credenciales: rotar y retirar antes de cualquier entrega."
-            )
-        elif risk_total:
-            priority_note = (
-                "No se detectaron credenciales críticas; priorizar la corrección de cabeceras y superficie expuesta."
-            )
-        else:
-            priority_note = "No se detectaron riesgos altos en el alcance analizado."
-
-        diagnosis = (
-            f"Se analizaron {len(data.pages)} páginas y {len(data.endpoints)} endpoints dentro del alcance autorizado. "
-            f"Se registraron {len(findings)} hallazgos, {risk_total} de ellos con severidad Media o superior. "
-            f"{priority_note} El alcance fue pasivo y no se realizaron pruebas de explotación."
+        narrative = await build_executive_summary(
+            target=data.target,
+            findings=findings,
+            severity_counts=severity_counts,
+            scope=scope,
+            settings=self.settings,
         )
-
-        priorities: list[str] = []
-        for severity in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM):
-            for finding in findings:
-                if finding.severity == severity and finding.remediation not in priorities:
-                    priorities.append(finding.remediation)
-            if len(priorities) >= 5:
-                break
 
         technologies = Technologies(
             server=detect_server(data.headers),
@@ -116,10 +106,11 @@ class SecurityAnalyzer:
             technologies=technologies,
             findings=findings,
             summary=SecuritySummary(
-                executive_diagnosis=diagnosis,
+                executive_diagnosis=narrative.diagnosis,
                 severity_counts=severity_counts,
-                remediation_priorities=priorities[:5],
+                remediation_priorities=narrative.priorities,
                 scope=scope,
+                engine=narrative.engine,
             ),
         )
 

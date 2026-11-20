@@ -1,9 +1,12 @@
+import pytest
+
 from app.analysis.analyzer import AnalysisInput, SecurityAnalyzer
+from app.core.config import Settings
 from app.models.security import Severity
 
 
-def test_analyzer_builds_executive_diagnosis() -> None:
-    data = AnalysisInput(
+def build_input() -> AnalysisInput:
+    return AnalysisInput(
         target="http://127.0.0.1:8080",
         audit_mode=True,
         headers={"Server": "nginx"},
@@ -19,7 +22,10 @@ def test_analyzer_builds_executive_diagnosis() -> None:
         sitemap_paths=["http://127.0.0.1:8080/page1.html"],
     )
 
-    output = SecurityAnalyzer().analyze(data)
+
+@pytest.mark.asyncio
+async def test_analyzer_builds_executive_diagnosis() -> None:
+    output = await SecurityAnalyzer().analyze(build_input())
 
     assert output.summary.executive_diagnosis
     assert output.summary.severity_counts[Severity.CRITICAL.value] == 0
@@ -27,3 +33,18 @@ def test_analyzer_builds_executive_diagnosis() -> None:
     assert any("robots" in finding.title for finding in output.findings)
     assert any("sitemap" in finding.title for finding in output.findings)
     assert output.summary.remediation_priorities
+
+
+@pytest.mark.asyncio
+async def test_analyzer_falls_back_without_llm_keys() -> None:
+    settings = Settings(
+        llm_provider="auto",
+        llm_api_key="",
+        openai_api_key="",
+        gemini_api_key="",
+    )
+
+    output = await SecurityAnalyzer(settings).analyze(build_input())
+
+    assert output.summary.engine == "local-rules"
+    assert output.summary.executive_diagnosis

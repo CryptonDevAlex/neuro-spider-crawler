@@ -36,6 +36,11 @@ def to_markdown(result: ScanResult) -> str:
         "",
         summary.executive_diagnosis if summary else "Informe aún en proceso.",
         "",
+        (
+            f"**Motor de diagnóstico:** "
+            f"{'IA configurada' if summary and summary.engine != 'local-rules' else 'Reglas locales'}"
+        ),
+        "",
         "## Distribución por severidad",
         "",
         "| Severidad | Hallazgos |",
