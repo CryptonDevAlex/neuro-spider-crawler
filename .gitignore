@@ -28,5 +28,6 @@ Thumbs.db
 
 # Runtime data
 backend/storage/
+backend/data/*.db
 logs/
 *.log

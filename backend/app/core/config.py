@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     request_delay_ms: int = 500
     navigation_timeout_ms: int = 15000
 
+    database_path: str = "data/neurospider.db"
+    monitoring_webhook_url: str = ""
+
 
 @lru_cache
 def get_settings() -> Settings:
