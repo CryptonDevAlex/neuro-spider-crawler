@@ -11,6 +11,8 @@ dependencies = [
   "pydantic-settings>=2.7",
   "httpx>=0.28",
   "fpdf2>=2.8",
+  "sqlalchemy>=2.0",
+  "apscheduler>=3.11",
 ]
 
 [project.optional-dependencies]
@@ -27,3 +29,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.ruff.lint]
 ignore = ["BLE001", "B008"]
+
+[[tool.mypy.overrides]]
+module = ["apscheduler.*"]
+ignore_missing_imports = true
