@@ -1,6 +1,7 @@
 import pytest
 
 from app.analysis.analyzer import AnalysisInput, SecurityAnalyzer
+from app.analysis.technologies import analyze_cookies
 from app.core.config import Settings
 from app.models.security import Severity
 
@@ -57,3 +58,26 @@ async def test_analyzer_falls_back_without_llm_keys() -> None:
 
     assert output.summary.engine == "local-rules"
     assert output.summary.executive_diagnosis
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["session", "sid", "PHPSESSID", "wordpress_logged_in_abc", "auth_token", "jwt"],
+)
+def test_session_cookie_without_httponly_is_high(name: str) -> None:
+    _, findings = analyze_cookies([{"name": name, "httpOnly": False, "secure": True}], "https://example.com")
+
+    httponly = next(item for item in findings if item.id.endswith(f"httponly-{name}"))
+
+    assert httponly.severity == Severity.HIGH
+    assert "sesión" in httponly.title.lower()
+
+
+@pytest.mark.parametrize("name", ["_ga", "_gid", "_fbp", "_gcl_au", "sbjs_current", "utm_source"])
+def test_analytics_cookie_without_httponly_is_info(name: str) -> None:
+    _, findings = analyze_cookies([{"name": name, "httpOnly": False, "secure": True}], "https://example.com")
+
+    httponly = next(item for item in findings if item.id.endswith(f"httponly-{name}"))
+
+    assert httponly.severity == Severity.INFO
+    assert "Cookie de rastreo no crítica" in httponly.description
