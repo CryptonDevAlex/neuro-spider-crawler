@@ -50,10 +50,17 @@ export interface CookieInfo {
   same_site: string | null;
 }
 
+export interface WafDetection {
+  name: string;
+  evidence: string;
+  category: string;
+}
+
 export interface Technologies {
   server: string | null;
   frameworks: string[];
   cookies: CookieInfo[];
+  waf: WafDetection[];
 }
 
 export interface Finding {
@@ -88,6 +95,8 @@ export interface ScanResult {
   findings: Finding[];
   robots_paths: string[];
   sitemap_paths: string[];
+  subdomains: string[];
+  waf_detections: WafDetection[];
   summary: SecuritySummary | null;
 }
 
@@ -130,6 +139,8 @@ export interface SummaryEvent extends EventBase {
   engine: string;
   technologies: Technologies;
   headers: SecurityHeader[];
+  subdomains: string[];
+  waf_detections: WafDetection[];
 }
 
 export interface ErrorEvent extends EventBase {
@@ -154,3 +165,45 @@ export type StreamEvent =
   | SummaryEvent
   | ErrorEvent
   | DoneEvent;
+
+export interface ScanHistoryItem {
+  scan_id: string;
+  domain: string;
+  created_at: string;
+  finished_at: string | null;
+  status: ScanStatus;
+  engine_ia: string;
+  severity_counts: Record<string, number>;
+  findings_total: number;
+  subdomains_total: number;
+}
+
+export interface ScanComparisonFinding {
+  id: string;
+  title: string;
+  severity: Severity;
+  category: string;
+  remediation: string;
+}
+
+export interface ScanComparison {
+  base_id: string;
+  target_id: string;
+  domain: string;
+  resolved: ScanComparisonFinding[];
+  new: ScanComparisonFinding[];
+  persistent: ScanComparisonFinding[];
+  counts: Record<string, number>;
+}
+
+export type MonitoringFrequency = "daily" | "weekly";
+
+export interface MonitoredTarget {
+  id: number;
+  domain: string;
+  frequency: MonitoringFrequency;
+  active: boolean;
+  webhook_url: string | null;
+  last_run_at: string | null;
+  created_at: string;
+}

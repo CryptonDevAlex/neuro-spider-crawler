@@ -7,9 +7,11 @@ import type {
   PageNode,
   ScanStatus,
   SecurityHeader,
+  ScanResult,
   SecuritySummary,
   StreamEvent,
   Technologies,
+  WafDetection,
 } from "@/lib/types";
 
 interface ScanState {
@@ -24,11 +26,14 @@ interface ScanState {
   headers: SecurityHeader[];
   technologies: Technologies;
   summary: SecuritySummary | null;
+  subdomains: string[];
+  wafDetections: WafDetection[];
   error: string | null;
   done: boolean;
   findingsTotal: number;
   setAccepted: (scanId: string, target: string) => void;
   applyEvent: (event: StreamEvent) => void;
+  loadResult: (result: ScanResult) => void;
   reset: () => void;
 }
 
@@ -42,8 +47,10 @@ const initialState = {
   nodes: [] as PageNode[],
   findings: [] as Finding[],
   headers: [] as SecurityHeader[],
-  technologies: { server: null, frameworks: [], cookies: [] } as Technologies,
+  technologies: { server: null, frameworks: [], cookies: [], waf: [] } as Technologies,
   summary: null as SecuritySummary | null,
+  subdomains: [] as string[],
+  wafDetections: [] as WafDetection[],
   error: null as string | null,
   done: false,
   findingsTotal: 0,
@@ -103,6 +110,8 @@ export const useScanStore = create<ScanState>((set) => ({
             headers: Array.from(
               new Map(event.headers.map((header) => [header.name, header])).values(),
             ),
+            subdomains: event.subdomains ?? [],
+            wafDetections: event.waf_detections ?? [],
           };
         case "error":
           return { error: `${event.code}: ${event.message}` };
@@ -115,6 +124,26 @@ export const useScanStore = create<ScanState>((set) => ({
             findingsTotal: event.findings_total,
           };
       }
+    }),
+
+  loadResult: (result) =>
+    set({
+      ...initialState,
+      scanId: result.scan_id,
+      target: result.target,
+      status: result.status,
+      done: result.status === "completed",
+      phase: result.status,
+      nodes: result.pages,
+      findings: result.findings,
+      headers: result.headers,
+      technologies: result.technologies,
+      summary: result.summary,
+      subdomains: result.subdomains,
+      wafDetections: result.waf_detections,
+      findingsTotal: result.findings.length,
+      pagesDone: result.pages.length,
+      pagesTotal: result.pages.length,
     }),
 
   reset: () => set(initialState),

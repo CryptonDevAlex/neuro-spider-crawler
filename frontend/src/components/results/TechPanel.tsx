@@ -6,6 +6,8 @@ import { useScanStore } from "@/store/scan-store";
 export function TechPanel() {
   const technologies = useScanStore((state) => state.technologies);
   const headers = useScanStore((state) => state.headers);
+  const subdomains = useScanStore((state) => state.subdomains);
+  const wafDetections = useScanStore((state) => state.wafDetections);
   const forms = useScanStore((state) => state.nodes.reduce((total, node) => total + node.forms, 0));
 
   return (
@@ -26,6 +28,47 @@ export function TechPanel() {
             ))
           ) : (
             <span className="text-[11px] text-terminal-muted">frameworks no identificados</span>
+          )}
+        </div>
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-terminal-muted">WAF/CDN</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {wafDetections.length > 0 ? (
+            wafDetections.map((detection) => (
+              <Badge key={detection.name} tone="accent">
+                {detection.name}
+              </Badge>
+            ))
+          ) : (
+            <span className="text-[11px] text-terminal-muted">no identificado</span>
+          )}
+        </div>
+        {wafDetections.length > 0 ? (
+          <div className="mt-2 space-y-1">
+            {wafDetections.map((detection) => (
+              <p key={`${detection.name}-evidence`} className="text-[10px] text-terminal-muted">
+                {detection.evidence}
+              </p>
+            ))}
+          </div>
+        ) : null}
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-[0.2em] text-terminal-muted">
+          subdominios por certificate transparency ({subdomains.length})
+        </p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {subdomains.length > 0 ? (
+            subdomains.slice(0, 30).map((subdomain) => (
+              <span key={subdomain} className="text-[10px] text-terminal-text">
+                {subdomain}
+              </span>
+            ))
+          ) : (
+            <span className="text-[11px] text-terminal-muted">sin subdominios adicionales</span>
           )}
         </div>
       </div>
