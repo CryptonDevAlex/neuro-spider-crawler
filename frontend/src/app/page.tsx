@@ -4,10 +4,10 @@ import { AppShell } from "@/components/layout/AppShell";
 import { SpiderGraph } from "@/components/crawler/SpiderGraph";
 import { UrlInput } from "@/components/crawler/UrlInput";
 import { ResultsPanel } from "@/components/results/ResultsPanel";
-import { useCrawlStream } from "@/hooks/useCrawlStream";
+import { useScanStream } from "@/hooks/useScanStream";
 
 export default function Home() {
-  useCrawlStream();
+  useScanStream();
 
   return (
     <AppShell>

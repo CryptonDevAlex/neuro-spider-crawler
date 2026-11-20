@@ -1,17 +1,17 @@
-export type CrawlStatus = "queued" | "running" | "completed" | "failed";
-export type EventType = "status" | "node" | "table" | "summary" | "error" | "done";
-export type ExportFormat = "json" | "markdown";
+export type ScanStatus = "queued" | "running" | "completed" | "failed";
+export type EventType = "status" | "node" | "finding" | "summary" | "error" | "done";
+export type Severity = "CRITICO" | "ALTO" | "MEDIO" | "BAJO" | "INFO";
 
-export interface CrawlRequest {
+export interface ScanRequest {
   url: string;
   max_depth: number;
   max_pages: number;
-  respect_robots: boolean;
+  audit_mode: boolean;
 }
 
-export interface CrawlAccepted {
-  crawl_id: string;
-  status: CrawlStatus;
+export interface ScanAccepted {
+  scan_id: string;
+  status: ScanStatus;
 }
 
 export interface PageNode {
@@ -20,38 +20,79 @@ export interface PageNode {
   title: string;
   depth: number;
   links: number;
+  forms: number;
+  scripts: number;
   word_count: number;
-  text?: string;
 }
 
-export interface TableData {
-  node_id: string;
-  headers: string[];
-  rows: string[][];
+export interface SecurityHeader {
+  name: string;
+  present: boolean;
+  value: string | null;
+  severity: Severity;
 }
 
-export interface KeyPoint {
-  text: string;
-  weight: number;
+export interface FormInput {
+  name: string;
+  type: string;
 }
 
-export interface ExecutiveSummary {
-  executive_summary: string;
-  key_points: KeyPoint[];
-  entities: string[];
+export interface FormDetail {
+  action: string;
+  method: string;
+  inputs: FormInput[];
 }
 
-export interface CrawlResult {
-  crawl_id: string;
-  status: CrawlStatus;
-  nodes: PageNode[];
-  tables: TableData[];
-  summary: ExecutiveSummary | null;
+export interface CookieInfo {
+  name: string;
+  http_only: boolean;
+  secure: boolean;
+  same_site: string | null;
+}
+
+export interface Technologies {
+  server: string | null;
+  frameworks: string[];
+  cookies: CookieInfo[];
+}
+
+export interface Finding {
+  id: string;
+  severity: Severity;
+  category: string;
+  title: string;
+  description: string;
+  evidence: string;
+  remediation: string;
+  target: string;
+  source: string | null;
+}
+
+export interface SecuritySummary {
+  executive_diagnosis: string;
+  severity_counts: Record<string, number>;
+  remediation_priorities: string[];
+  scope: Record<string, number>;
+}
+
+export interface ScanResult {
+  scan_id: string;
+  status: ScanStatus;
+  target: string;
+  pages: PageNode[];
+  headers: SecurityHeader[];
+  forms: FormDetail[];
+  js_files: string[];
+  technologies: Technologies;
+  findings: Finding[];
+  robots_paths: string[];
+  sitemap_paths: string[];
+  summary: SecuritySummary | null;
 }
 
 export interface EventBase {
   type: EventType;
-  crawl_id: string;
+  scan_id: string;
   timestamp: string;
 }
 
@@ -69,33 +110,37 @@ export interface NodeEvent extends EventBase {
   title: string;
   depth: number;
   links: number;
+  forms: number;
+  scripts: number;
   word_count: number;
 }
 
-export interface TableEvent extends EventBase {
-  type: "table";
-  node_id: string;
-  headers: string[];
-  rows: string[][];
+export interface FindingEvent extends EventBase {
+  type: "finding";
+  finding: Finding;
 }
 
 export interface SummaryEvent extends EventBase {
   type: "summary";
-  executive_summary: string;
-  key_points: string[];
-  entities: string[];
+  executive_diagnosis: string;
+  severity_counts: Record<string, number>;
+  remediation_priorities: string[];
+  scope: Record<string, number>;
+  technologies: Technologies;
+  headers: SecurityHeader[];
 }
 
 export interface ErrorEvent extends EventBase {
   type: "error";
   code: string;
   message: string;
-  node_id?: string | null;
+  page_id?: string | null;
 }
 
 export interface DoneEvent extends EventBase {
   type: "done";
-  pages_crawled: number;
+  pages_scanned: number;
+  findings_total: number;
   duration_ms: number;
   export_ready: boolean;
 }
@@ -103,7 +148,7 @@ export interface DoneEvent extends EventBase {
 export type StreamEvent =
   | StatusEvent
   | NodeEvent
-  | TableEvent
+  | FindingEvent
   | SummaryEvent
   | ErrorEvent
   | DoneEvent;

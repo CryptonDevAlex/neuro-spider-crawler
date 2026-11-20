@@ -6,8 +6,8 @@ import { SpiderMap } from "./SpiderMap";
 export function SpiderGraph() {
   return (
     <Panel
-      title="Mapa de rastreo"
-      subtitle="Cada nodo representa una página extraída en tiempo real"
+      title="Mapa de reconocimiento"
+      subtitle="Cada nodo representa una página detectada en tiempo real"
       className="min-h-[360px] flex-1"
     >
       <SpiderMap />

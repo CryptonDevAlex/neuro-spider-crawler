@@ -1,7 +1,1 @@
-"use client";
-
-import { useCrawlStore } from "@/store/crawl-store";
-
-export function useCrawlState() {
-  return useCrawlStore();
-}
+export { useScanState as useCrawlState } from "./useScanState";

@@ -4,8 +4,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NeuroSpider — Visual Web Crawler",
-  description: "Rastreo visual con extracción estructurada y resumen por IA",
+  title: "NeuroSpider — Reconocimiento Web Pasivo",
+  description: "OSINT autorizado con mapa visual, hallazgos de seguridad e informe Markdown",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

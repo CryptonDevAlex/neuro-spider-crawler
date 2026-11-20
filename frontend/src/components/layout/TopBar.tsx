@@ -1,10 +1,10 @@
 "use client";
 
 import { Badge } from "@/components/ui/Badge";
-import { useCrawlStore } from "@/store/crawl-store";
+import { useScanStore } from "@/store/scan-store";
 
 export function TopBar() {
-  const status = useCrawlStore((state) => state.status);
+  const status = useScanStore((state) => state.status);
 
   return (
     <header className="flex items-center justify-between border-b border-terminal-border bg-terminal-panel/60 px-4 py-3">
@@ -15,7 +15,7 @@ export function TopBar() {
         <div>
           <p className="text-sm font-bold tracking-[0.3em] text-terminal-text">NEUROSPIDER</p>
           <p className="text-[10px] tracking-widest text-terminal-muted">
-            VISUAL CRAWLER / AI EXTRACTION
+            PASSIVE RECON / OSINT AUTHORIZED
           </p>
         </div>
       </div>

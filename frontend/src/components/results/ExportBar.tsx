@@ -1,11 +1,12 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
-import type { CrawlResult, ExportFormat } from "@/lib/types";
-import { useCrawlStore } from "@/store/crawl-store";
+import { useState } from "react";
 
-function download(filename: string, content: string, mime: string): void {
-  const blob = new Blob([content], { type: mime });
+import { Button } from "@/components/ui/Button";
+import { reportUrl } from "@/lib/api";
+import { useScanStore } from "@/store/scan-store";
+
+function download(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
   anchor.href = url;
@@ -14,55 +15,40 @@ function download(filename: string, content: string, mime: string): void {
   URL.revokeObjectURL(url);
 }
 
-function toMarkdown(result: CrawlResult): string {
-  const lines = [
-    `# NeuroSpider — ${result.crawl_id}`,
-    "",
-    "## Resumen ejecutivo",
-    result.summary?.executive_summary ?? "No disponible",
-    "",
-    "## Puntos clave",
-    ...(result.summary?.key_points.map((point) => `- ${point.text}`) ?? ["- No disponible"]),
-    "",
-    "## Páginas",
-    ...result.nodes.map(
-      (node) => `- [${node.title || node.url}](${node.url}) · profundidad ${node.depth} · ${node.links} enlaces`,
-    ),
-    "",
-    "## Entidades",
-    ...(result.summary?.entities.map((entity) => `- ${entity}`) ?? ["- No disponible"]),
-  ];
-
-  return lines.join("\n");
-}
-
 export function ExportBar() {
-  const crawlId = useCrawlStore((state) => state.crawlId);
-  const nodes = useCrawlStore((state) => state.nodes);
-  const tables = useCrawlStore((state) => state.tables);
-  const summary = useCrawlStore((state) => state.summary);
-  const status = useCrawlStore((state) => state.status);
+  const scanId = useScanStore((state) => state.scanId);
+  const done = useScanStore((state) => state.done);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleExport = (format: ExportFormat) => {
-    if (!crawlId) {
+  const handleDownload = async () => {
+    if (!scanId) {
       return;
     }
 
-    const result: CrawlResult = { crawl_id: crawlId, status, nodes, tables, summary };
-    const content = format === "json" ? JSON.stringify(result, null, 2) : toMarkdown(result);
-    download(`neurospider-${crawlId}.${format === "json" ? "json" : "md"}`, content, format === "json" ? "application/json" : "text/markdown");
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(reportUrl(scanId));
+      if (!response.ok) {
+        throw new Error(`No se pudo generar el informe (${response.status})`);
+      }
+      download(await response.blob(), `neurospider-${scanId}.md`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Error desconocido");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const disabled = !crawlId || (nodes.length === 0 && !summary);
+  if (error) {
+    return <span className="text-[10px] text-terminal-alert">{error}</span>;
+  }
 
   return (
-    <div className="flex gap-2">
-      <Button variant="ghost" disabled={disabled} onClick={() => handleExport("json")}>
-        json
-      </Button>
-      <Button variant="ghost" disabled={disabled} onClick={() => handleExport("markdown")}>
-        markdown
-      </Button>
-    </div>
+    <Button variant="ghost" disabled={!scanId || !done || loading} onClick={handleDownload}>
+      {loading ? "generando..." : "MARKDOWN"}
+    </Button>
   );
 }

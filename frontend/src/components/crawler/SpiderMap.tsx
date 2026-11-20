@@ -1,7 +1,7 @@
 "use client";
 
 import { NodeCard } from "./NodeCard";
-import { useCrawlStore } from "@/store/crawl-store";
+import { useScanStore } from "@/store/scan-store";
 
 const POINTS: Array<[number, number]> = [
   [300, 90],
@@ -15,7 +15,7 @@ const POINTS: Array<[number, number]> = [
 ];
 
 export function SpiderMap() {
-  const nodes = useCrawlStore((state) => state.nodes);
+  const nodes = useScanStore((state) => state.nodes);
   const lastNode = nodes[nodes.length - 1];
 
   return (
@@ -24,7 +24,7 @@ export function SpiderMap() {
         viewBox="0 0 600 600"
         className="h-full w-full"
         role="img"
-        aria-label={`Mapa del rastreo con ${nodes.length} nodos`}
+        aria-label={`Mapa del reconocimiento con ${nodes.length} nodos`}
       >
         <g className="spider-web">
           <circle cx="300" cy="300" r="70" />
@@ -69,7 +69,7 @@ export function SpiderMap() {
         {lastNode ? <NodeCard node={lastNode} /> : null}
       </div>
       <div className="absolute bottom-0 right-0 text-[10px] uppercase tracking-widest text-terminal-muted">
-        {nodes.length} nodos detectados
+        {nodes.length} páginas detectadas
       </div>
     </div>
   );
