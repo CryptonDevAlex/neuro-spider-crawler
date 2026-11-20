@@ -23,3 +23,7 @@ export function streamUrl(scanId: string): string {
 export function reportUrl(scanId: string): string {
   return `${API_URL}/scan/${scanId}/report.md`;
 }
+
+export function pdfReportUrl(scanId: string): string {
+  return `${API_URL}/scan/${scanId}/report.pdf`;
+}

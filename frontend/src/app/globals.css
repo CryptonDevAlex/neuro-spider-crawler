@@ -39,29 +39,37 @@ body {
   filter: drop-shadow(0 0 6px #34d399);
 }
 
+.spider-fire {
+  filter: drop-shadow(0 0 6px #ff2a00) drop-shadow(0 0 18px rgba(255, 85, 0, 0.85));
+}
+
 .spider-shell {
-  fill: #0b111c;
-  stroke: #22d3ee;
+  fill: #1a0500;
+  stroke: #ff5500;
   stroke-width: 2;
 }
 
+.spider-eye {
+  fill: #ff2a00;
+  filter: drop-shadow(0 0 5px #ff2a00);
+}
+
 .spider-leg {
-  stroke: #22d3ee;
-  stroke-width: 2;
+  fill: none;
+  stroke: #ff5500;
+  stroke-width: 2.4;
   stroke-linecap: round;
-  transform-origin: 300px 300px;
-  animation: leg-pulse 2.4s ease-in-out infinite;
+  stroke-linejoin: round;
+  animation: leg-pulse 0.5s ease-in-out infinite;
 }
 
 @keyframes leg-pulse {
   0%,
   100% {
-    opacity: 0.45;
-    transform: scale(0.97) rotate(0deg);
+    opacity: 0.65;
   }
   50% {
     opacity: 1;
-    transform: scale(1.02) rotate(2deg);
   }
 }
 
