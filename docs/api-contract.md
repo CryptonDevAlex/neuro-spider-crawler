@@ -41,7 +41,35 @@ Descarga el informe Markdown profesional con diagnóstico ejecutivo, severidades
 
 ### `GET /scan/{scan_id}/report.pdf`
 
-Descarga un informe PDF corporativo con encabezado oscuro, resumen ejecutivo, tabla de severidades, detalle de hallazgos, guía técnica de remediación y aviso de reconocimiento pasivo autorizado.
+Descarga un informe PDF corporativo con encabezado oscuro, resumen ejecutivo, tabla de severidades, WAF/CDN, subdominios por Certificate Transparency, detalle de hallazgos, guía técnica de remediación y aviso de reconocimiento pasivo autorizado.
+
+### `GET /scans/history`
+
+Devuelve el historial de escaneos persistidos en SQLite, ordenado del más reciente al más antiguo.
+
+### `GET /scans/{scan_id}`
+
+Devuelve un escaneo guardado con el mismo contrato que `GET /scan/{scan_id}` para recargarlo en pantalla.
+
+### `GET /scans/compare?base_id=...&target_id=...`
+
+Compara dos escaneos del mismo dominio y devuelve `resolved`, `new`, `persistent` y `counts`.
+
+### `GET /monitoring/targets`
+
+Lista los dominios en vigilancia continua.
+
+### `POST /monitoring/targets`
+
+Registra o actualiza un dominio vigilado con `domain`, `frequency` (`daily`/`weekly`) y `webhook_url` opcional.
+
+### `PATCH /monitoring/targets/{target_id}`
+
+Activa o pausa un dominio vigilado con `{ "active": true|false }`.
+
+### `DELETE /monitoring/targets/{target_id}`
+
+Elimina un dominio vigilado.
 
 ## Eventos
 
@@ -52,7 +80,7 @@ Todos los eventos llevan `event:` y un payload JSON con `type`, `scan_id` y `tim
 | `status` | `{ phase, pages_done, pages_total }` | Cambio de fase o progreso |
 | `node` | `{ id, url, title, depth, links, forms, scripts, word_count }` | Página detectada y analizada |
 | `finding` | `{ finding: { id, severity, category, title, description, evidence, remediation, target, source } }` | Hallazgo de seguridad detectado |
-| `summary` | `{ executive_diagnosis, severity_counts, remediation_priorities, scope, engine, technologies, headers }` | Análisis consolidado |
+| `summary` | `{ executive_diagnosis, severity_counts, remediation_priorities, scope, engine, technologies, headers, subdomains, waf_detections }` | Análisis consolidado |
 | `error` | `{ code, message, page_id? }` | Fallo parcial o fatal |
 | `done` | `{ pages_scanned, findings_total, duration_ms, export_ready }` | Finalización |
 
@@ -91,5 +119,6 @@ Los errores por página son informativos y no detienen el escaneo. El evento `su
 ## Notas de alcance
 
 - No se realizan peticiones a puertos ni rutas fuera del host autorizado, salvo la descarga de scripts vinculados desde las páginas analizadas.
+- La única consulta externa adicional es la API pública de Certificate Transparency en `crt.sh`, usada solo para enumerar subdominios publicados.
 - No se envían payloads de ataque ni se intenta explotar ningún hallazgo.
 - La evidencia se presenta de forma enmascarada cuando contiene posibles secretos.

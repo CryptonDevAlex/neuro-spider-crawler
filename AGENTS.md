@@ -48,7 +48,8 @@ Reglas de desarrollo para NeuroSpider. Aplican a personas y agentes de IA.
 
 1. **Fase 1:** estructura, documentación, contratos y stubs.
 2. **Fase 2:** navegación, SSE y UI en vivo.
-3. **Fase 3 (actual):** reconocimiento pasivo de seguridad, informe Markdown y pruebas.
-4. **Fase 4:** robustez, persistencia opcional y despliegue.
+3. **Fase 3:** reconocimiento pasivo de seguridad, informe Markdown y pruebas.
+4. **Fase 4:** robustez, persistencia local y despliegue.
+5. **Fase 5 (actual):** historial, comparador, reconocimiento ampliado y vigilancia continua.
 
 No implementar fases futuras sin que el usuario lo solicite.

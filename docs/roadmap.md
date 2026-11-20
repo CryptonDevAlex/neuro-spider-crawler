@@ -38,7 +38,14 @@
 - [x] Continuidad ante timeouts, `403`, `429` y errores por página
 - [x] Hallazgo `ALTO` por certificado TLS vencido o autofirmado
 - [x] Diagnóstico ejecutivo con OpenAI/Gemini opcional y fallback local
-- [ ] Persistencia opcional de resultados
+- [x] Persistencia local de resultados en SQLite
 - [ ] Configuración de reglas por perfil de cliente
 - [x] Exportación PDF corporativa con fpdf2
 - [ ] Docker Compose y despliegue
+
+## Fase 5 — Suite de ciberseguridad
+
+- [x] Historial de auditorías y comparador antes/después
+- [x] Descubrimiento pasivo de subdominios con crt.sh
+- [x] Detección de WAF/CDN en UI y PDF
+- [x] Vigilancia 24/7 con APScheduler y webhooks

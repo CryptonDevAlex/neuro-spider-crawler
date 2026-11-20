@@ -7,7 +7,7 @@ NeuroSpider es un sistema de dos procesos:
 1. **Backend (FastAPI):** orquesta la navegación con Playwright, extrae superficie expuesta y analiza hallazgos de seguridad pasiva.
 2. **Frontend (Next.js):** consume eventos SSE, dibuja el mapa de la araña y muestra métricas, hallazgos e informe exportable.
 
-El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni persistencia de evidencia sensible.
+El resultado vive en memoria durante el escaneo y se persiste al finalizar en SQLite local (`backend/data/neurospider.db`). No se requiere servidor de base de datos externo.
 
 ## Componentes del backend
 
@@ -25,6 +25,12 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 | `app/analysis/headers.py` | Comprobación de cabeceras de seguridad |
 | `app/analysis/secrets.py` | Búsqueda enmascarada de tokens, claves, correos y rutas internas |
 | `app/analysis/technologies.py` | Servidor, frameworks y cookies |
+| `app/analysis/subdomains.py` | Subdominios pasivos desde Certificate Transparency (crt.sh) |
+| `app/analysis/waf.py` | Huellas de WAF/CDN desde cabeceras y cookies |
+| `app/db/` | Modelos SQLAlchemy, sesión, repositorios y SQLite local |
+| `app/api/routes/history.py` | Historial, recuperación y comparación de escaneos |
+| `app/api/routes/monitoring.py` | Altas, pausas y bajas de dominios vigilados |
+| `app/services/monitoring_service.py` | APScheduler, re-escaneo y alertas webhook |
 | `app/analysis/analyzer.py` | Consolidación de hallazgos, severidades y diagnóstico |
 | `app/analysis/executive_summary.py` | Diagnóstico con OpenAI/Gemini opcional y fallback local |
 | `app/services/export_service.py` | Informe Markdown profesional |
@@ -42,6 +48,8 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 | `src/components/results/FindingsReport.tsx` | Panel de severidades y remediación |
 | `src/components/results/TechPanel.tsx` | Tecnologías, cookies y cabeceras |
 | `src/components/results/ExportBar.tsx` | Descarga de informes Markdown y PDF |
+| `src/components/suite/HistoryPanel.tsx` | Historial, recarga de auditorías y comparador |
+| `src/components/suite/MonitoringPanel.tsx` | Alta, pausa y baja de vigilancia 24/7 |
 
 ## Decisiones
 
@@ -51,6 +59,8 @@ El resultado vive en memoria mientras dura el escaneo. No hay base de datos ni p
 - **Reglas locales por defecto:** el análisis de secretos y configuración se hace sin enviar contenido a proveedores externos. Si se configura `OPENAI_API_KEY` o `GEMINI_API_KEY`, solo se envía un resumen estructurado de hallazgos para redactar el diagnóstico ejecutivo.
 - **Evidencia enmascarada:** los posibles secretos se truncan para no exponerlos en pantalla ni en el informe.
 - **Deduplicación en cliente:** evita duplicados cuando EventSource se reconecta y reproduce eventos previos.
+- **SQLite local:** el historial y la vigilancia no dependen de infraestructura externa; la base se ignora en Git.
+- **Reconocimiento pasivo ampliado:** crt.sh solo consulta certificados públicos y la detección de WAF/CDN se basa en cabeceras y cookies observadas, sin sondeo activo.
 
 ## Riesgos y límites
 
