@@ -1,3 +1,27 @@
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  full_name: string;
+  email: string;
+  password: string;
+}
+
+export interface TokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+export interface AuthUser {
+  id: number;
+  email: string;
+  full_name: string;
+  role: string;
+}
+
 export type ScanStatus = "queued" | "running" | "completed" | "failed";
 export type EventType = "status" | "node" | "finding" | "summary" | "error" | "done";
 export type Severity = "CRITICO" | "ALTO" | "MEDIO" | "BAJO" | "INFO";

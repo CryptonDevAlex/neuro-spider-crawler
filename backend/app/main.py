@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import crawl, health, history, monitoring
+from app.api.routes import auth, crawl, health, history, monitoring
 from app.core.config import get_settings
 from app.core.logging import configure_logging
 from app.db.database import init_db
@@ -28,8 +28,11 @@ def create_app() -> FastAPI:
     settings = get_settings()
     application = FastAPI(
         title=settings.app_name,
-        version="0.3.0",
-        description="Suite de reconocimiento pasivo, historial y monitoreo continuo sobre alcances autorizados.",
+        version="0.5.0",
+        description=(
+            "Plataforma multiusuario de reconocimiento pasivo, historial privado y "
+            "monitoreo continuo sobre alcances autorizados."
+        ),
         lifespan=lifespan,
     )
     application.add_middleware(
@@ -40,6 +43,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     application.include_router(health.router)
+    application.include_router(auth.router)
     application.include_router(crawl.router)
     application.include_router(history.router)
     application.include_router(monitoring.router)

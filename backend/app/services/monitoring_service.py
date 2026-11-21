@@ -45,10 +45,13 @@ class MonitoringScheduler:
             targets = due_monitored_targets(session)
 
         for target in targets:
+            if target.user_id is None:
+                continue
             try:
                 asyncio.run(
                     self._run_target(
                         domain=target.domain,
+                        user_id=target.user_id,
                         webhook_url=target.webhook_url or self.settings.monitoring_webhook_url,
                     )
                 )
@@ -59,9 +62,9 @@ class MonitoringScheduler:
                     refreshed = session.merge(target)
                     mark_monitored_run(session, refreshed)
 
-    async def _run_target(self, domain: str, webhook_url: str) -> None:
+    async def _run_target(self, domain: str, user_id: int, webhook_url: str) -> None:
         with SessionLocal() as session:
-            previous = latest_scan_for_domain(session, domain)
+            previous = latest_scan_for_domain(session, domain, user_id)
             previous_ids = self._critical_ids(previous.findings) if previous else set()
 
         service = ScanService(self.settings)
@@ -71,12 +74,12 @@ class MonitoringScheduler:
             max_pages=min(self.settings.max_pages, 10),
             audit_mode=True,
         )
-        scan_id, _ = await service.start(payload)
+        scan_id, _ = await service.start(payload, user_id)
 
         result = None
         for _ in range(240):
             await asyncio.sleep(1)
-            result = await service.get(scan_id)
+            result = await service.get(scan_id, user_id)
             if result is not None and result.status in (
                 ScanStatus.COMPLETED,
                 ScanStatus.FAILED,

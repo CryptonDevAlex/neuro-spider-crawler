@@ -1,6 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/Badge";
+import { useAuthStore } from "@/store/auth-store";
 import { useScanStore } from "@/store/scan-store";
 import { useUiStore, type SuiteView } from "@/store/ui-store";
 
@@ -12,8 +13,17 @@ const views: { id: SuiteView; label: string }[] = [
 
 export function TopBar() {
   const status = useScanStore((state) => state.status);
+  const resetScan = useScanStore((state) => state.reset);
   const view = useUiStore((state) => state.view);
   const setView = useUiStore((state) => state.setView);
+  const user = useAuthStore((state) => state.user);
+  const signOut = useAuthStore((state) => state.signOut);
+
+  const handleLogout = async () => {
+    resetScan();
+    setView("recon");
+    await signOut();
+  };
 
   return (
     <header className="flex flex-wrap items-center justify-between gap-3 border-b border-terminal-border bg-terminal-panel/60 px-4 py-3">
@@ -44,9 +54,19 @@ export function TopBar() {
           </button>
         ))}
       </nav>
-      <Badge tone={status === "completed" ? "signal" : status === "failed" ? "alert" : "accent"}>
-        {status}
-      </Badge>
+      <div className="flex items-center gap-2">
+        <Badge tone={status === "completed" ? "signal" : status === "failed" ? "alert" : "accent"}>
+          {status}
+        </Badge>
+        <span className="hidden text-[10px] text-terminal-muted sm:inline">{user?.email}</span>
+        <button
+          type="button"
+          onClick={() => void handleLogout()}
+          className="rounded border border-terminal-alert/60 bg-terminal-alert/10 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-widest text-terminal-alert transition-colors hover:bg-terminal-alert/20"
+        >
+          cerrar sesión
+        </button>
+      </div>
     </header>
   );
 }

@@ -17,7 +17,7 @@ export function useScanStream(): void {
       return;
     }
 
-    const source = new EventSource(streamUrl(scanId));
+    const source = new EventSource(streamUrl(scanId), { withCredentials: true });
 
     const handler = (event: Event) => {
       const message = event as MessageEvent<string>;

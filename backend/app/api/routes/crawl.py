@@ -4,7 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import PlainTextResponse, Response, StreamingResponse
 
-from app.api.deps import get_scan_service
+from app.api.deps import AuthenticatedUser, get_current_user, get_scan_service
 from app.models.security import ScanAccepted, ScanRequest, ScanResult
 from app.services.crawler_service import ScanService
 from app.services.export_service import to_markdown
@@ -16,18 +16,20 @@ router = APIRouter(prefix="/scan", tags=["scan"])
 @router.post("", status_code=202)
 async def start_scan(
     payload: ScanRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> ScanAccepted:
-    scan_id, result = await service.start(payload)
+    scan_id, result = await service.start(payload, user.id)
     return ScanAccepted(scan_id=scan_id, status=result.status)
 
 
 @router.get("/{scan_id}/report.md", response_class=PlainTextResponse)
 async def get_report(
     scan_id: UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> PlainTextResponse:
-    result = await service.get(scan_id)
+    result = await service.get(scan_id, user.id)
     if result is None:
         raise HTTPException(status_code=404, detail="Escaneo no encontrado")
 
@@ -43,9 +45,10 @@ async def get_report(
 @router.get("/{scan_id}/report.pdf", response_class=Response)
 async def get_pdf_report(
     scan_id: UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> Response:
-    result = await service.get(scan_id)
+    result = await service.get(scan_id, user.id)
     if result is None:
         raise HTTPException(status_code=404, detail="Escaneo no encontrado")
 
@@ -61,9 +64,10 @@ async def get_pdf_report(
 @router.get("/{scan_id}")
 async def get_scan(
     scan_id: UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> ScanResult:
-    result = await service.get(scan_id)
+    result = await service.get(scan_id, user.id)
     if result is None:
         raise HTTPException(status_code=404, detail="Escaneo no encontrado")
     return result
@@ -72,10 +76,11 @@ async def get_scan(
 @router.get("/{scan_id}/stream")
 async def stream_scan(
     scan_id: UUID,
+    user: AuthenticatedUser = Depends(get_current_user),
     service: ScanService = Depends(get_scan_service),
 ) -> StreamingResponse:
     async def generate() -> AsyncIterator[str]:
-        async for event in service.stream(scan_id):
+        async for event in service.stream(scan_id, user.id):
             yield f"event: {event.type.value}\ndata: {event.model_dump_json()}\n\n"
 
     return StreamingResponse(

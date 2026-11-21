@@ -43,6 +43,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ScanJob:
     scan_id: UUID
+    owner_id: int
     result: ScanResult
     events: list[EventBase] = field(default_factory=list)
     queue: asyncio.Queue[EventBase | None] = field(default_factory=asyncio.Queue)
@@ -62,7 +63,7 @@ class ScanService:
             timeout_ms=self.settings.navigation_timeout_ms,
         )
 
-    async def start(self, payload: ScanRequest) -> tuple[UUID, ScanResult]:
+    async def start(self, payload: ScanRequest, owner_id: int) -> tuple[UUID, ScanResult]:
         scan_id = uuid4()
         result = ScanResult(
             scan_id=scan_id,
@@ -70,18 +71,23 @@ class ScanService:
             target=str(payload.url),
             started_at=datetime.now(UTC),
         )
-        job = ScanJob(scan_id=scan_id, result=result)
+        job = ScanJob(scan_id=scan_id, owner_id=owner_id, result=result)
         self.jobs[scan_id] = job
         asyncio.create_task(self._run(job, payload))
         return scan_id, result
 
-    async def get(self, scan_id: UUID) -> ScanResult | None:
+    async def get(self, scan_id: UUID, owner_id: int) -> ScanResult | None:
         job = self.jobs.get(scan_id)
-        return job.result if job else None
+        return job.result if job is not None and job.owner_id == owner_id else None
 
-    async def stream(self, scan_id: UUID) -> AsyncIterator[EventBase]:
+    def forget(self, scan_id: UUID, owner_id: int) -> None:
         job = self.jobs.get(scan_id)
-        if job is None:
+        if job is not None and job.owner_id == owner_id:
+            self.jobs.pop(scan_id, None)
+
+    async def stream(self, scan_id: UUID, owner_id: int) -> AsyncIterator[EventBase]:
+        job = self.jobs.get(scan_id)
+        if job is None or job.owner_id != owner_id:
             return
 
         cursor = len(job.events)
@@ -366,7 +372,7 @@ class ScanService:
             )
             try:
                 with SessionLocal() as session:
-                    save_scan(session, job.result)
+                    save_scan(session, job.result, job.owner_id)
             except Exception as exc:
                 logger.warning("No se pudo persistir el escaneo %s: %s", job.scan_id, exc)
             await job.queue.put(None)

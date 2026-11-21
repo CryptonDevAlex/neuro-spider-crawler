@@ -49,17 +49,16 @@ def build_result() -> ScanResult:
     )
 
 
-def test_pdf_report_endpoint() -> None:
+def test_pdf_report_endpoint(authorized_client: TestClient) -> None:
     result = build_result()
 
     class FakeService:
-        async def get(self, scan_id: object) -> ScanResult:
+        async def get(self, scan_id: object, owner_id: object) -> ScanResult:
             return result
 
     app.dependency_overrides[get_scan_service] = lambda: FakeService()
     try:
-        client = TestClient(app)
-        response = client.get(f"/scan/{result.scan_id}/report.pdf")
+        response = authorized_client.get(f"/scan/{result.scan_id}/report.pdf")
     finally:
         app.dependency_overrides.clear()
 

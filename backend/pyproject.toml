@@ -13,6 +13,8 @@ dependencies = [
   "fpdf2>=2.8",
   "sqlalchemy>=2.0",
   "apscheduler>=3.11",
+  "pyjwt>=2.10",
+  "bcrypt>=4.2",
 ]
 
 [project.optional-dependencies]

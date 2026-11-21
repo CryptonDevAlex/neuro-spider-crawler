@@ -1,27 +1,90 @@
 import type {
+  AuthUser,
+  LoginRequest,
   MonitoredTarget,
+  RegisterRequest,
   MonitoringFrequency,
   ScanAccepted,
   ScanComparison,
   ScanHistoryItem,
   ScanRequest,
   ScanResult,
+  TokenResponse,
 } from "./types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000";
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "/api-backend";
 
-export async function startScan(payload: ScanRequest): Promise<ScanAccepted> {
-  const response = await fetch(`${API_URL}/scan`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+async function errorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    return payload.detail ? `${payload.detail} (${response.status})` : `${fallback} (${response.status})`;
+  } catch {
+    return `${fallback} (${response.status})`;
+  }
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit,
+  fallback: string,
+): Promise<T> {
+  const response = await fetch(`${API_URL}${path}`, {
+    ...init,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...init.headers,
+    },
   });
 
   if (!response.ok) {
-    throw new Error(`No se pudo iniciar el reconocimiento (${response.status})`);
+    throw new Error(await errorMessage(response, fallback));
   }
+  return (await response.json()) as T;
+}
 
-  return (await response.json()) as ScanAccepted;
+export async function login(payload: LoginRequest): Promise<TokenResponse> {
+  return request<TokenResponse>(
+    "/auth/login",
+    { method: "POST", body: JSON.stringify(payload) },
+    "No se pudo iniciar sesión",
+  );
+}
+
+export async function register(payload: RegisterRequest): Promise<TokenResponse> {
+  return request<TokenResponse>(
+    "/auth/register",
+    { method: "POST", body: JSON.stringify(payload) },
+    "No se pudo crear la cuenta",
+  );
+}
+
+export function googleLoginUrl(): string {
+  return `${API_URL}/auth/google/login`;
+}
+
+export async function fetchCurrentUser(): Promise<AuthUser> {
+  return request<AuthUser>(
+    "/auth/me",
+    { method: "GET" },
+    "No se pudo verificar la sesión",
+  );
+}
+
+export async function logout(): Promise<void> {
+  await request<{ logged_out: boolean }>(
+    "/auth/logout",
+    { method: "POST" },
+    "No se pudo cerrar la sesión",
+  );
+}
+
+export async function startScan(payload: ScanRequest): Promise<ScanAccepted> {
+  return request<ScanAccepted>(
+    "/scan",
+    { method: "POST", body: JSON.stringify(payload) },
+    "No se pudo iniciar el reconocimiento",
+  );
 }
 
 export function streamUrl(scanId: string): string {
@@ -36,21 +99,37 @@ export function pdfReportUrl(scanId: string): string {
   return `${API_URL}/scan/${scanId}/report.pdf`;
 }
 
-async function parseResponse<T>(response: Response, message: string): Promise<T> {
+export async function fetchReport(scanId: string, format: "md" | "pdf"): Promise<Blob> {
+  const url = format === "pdf" ? pdfReportUrl(scanId) : reportUrl(scanId);
+  const response = await fetch(url, { credentials: "include" });
   if (!response.ok) {
-    throw new Error(`${message} (${response.status})`);
+    throw new Error(await errorMessage(response, "No se pudo descargar el informe"));
   }
-  return (await response.json()) as T;
+  return response.blob();
 }
 
 export async function fetchScanHistory(): Promise<ScanHistoryItem[]> {
-  const response = await fetch(`${API_URL}/scans/history`);
-  return parseResponse<ScanHistoryItem[]>(response, "No se pudo cargar el historial");
+  return request<ScanHistoryItem[]>(
+    "/scans/history",
+    { method: "GET" },
+    "No se pudo cargar el historial",
+  );
 }
 
 export async function fetchStoredScan(scanId: string): Promise<ScanResult> {
-  const response = await fetch(`${API_URL}/scans/${scanId}`);
-  return parseResponse<ScanResult>(response, "No se pudo cargar el escaneo");
+  return request<ScanResult>(
+    `/scans/${scanId}`,
+    { method: "GET" },
+    "No se pudo cargar el escaneo",
+  );
+}
+
+export async function deleteStoredScan(scanId: string): Promise<void> {
+  await request<{ deleted: boolean }>(
+    `/scans/${scanId}`,
+    { method: "DELETE" },
+    "No se pudo eliminar el escaneo",
+  );
 }
 
 export async function compareStoredScans(
@@ -58,13 +137,19 @@ export async function compareStoredScans(
   targetId: string,
 ): Promise<ScanComparison> {
   const query = new URLSearchParams({ base_id: baseId, target_id: targetId });
-  const response = await fetch(`${API_URL}/scans/compare?${query.toString()}`);
-  return parseResponse<ScanComparison>(response, "No se pudo comparar los escaneos");
+  return request<ScanComparison>(
+    `/scans/compare?${query.toString()}`,
+    { method: "GET" },
+    "No se pudo comparar los escaneos",
+  );
 }
 
 export async function fetchMonitoredTargets(): Promise<MonitoredTarget[]> {
-  const response = await fetch(`${API_URL}/monitoring/targets`);
-  return parseResponse<MonitoredTarget[]>(response, "No se pudo cargar la vigilancia");
+  return request<MonitoredTarget[]>(
+    "/monitoring/targets",
+    { method: "GET" },
+    "No se pudo cargar la vigilancia",
+  );
 }
 
 export async function createMonitoredTarget(
@@ -72,35 +157,35 @@ export async function createMonitoredTarget(
   frequency: MonitoringFrequency,
   webhookUrl: string,
 ): Promise<MonitoredTarget> {
-  const response = await fetch(`${API_URL}/monitoring/targets`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      domain,
-      frequency,
-      webhook_url: webhookUrl.trim() || null,
-    }),
-  });
-  return parseResponse<MonitoredTarget>(response, "No se pudo registrar el dominio");
+  return request<MonitoredTarget>(
+    "/monitoring/targets",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        domain,
+        frequency,
+        webhook_url: webhookUrl.trim() || null,
+      }),
+    },
+    "No se pudo registrar el dominio",
+  );
 }
 
 export async function updateMonitoredTarget(
   targetId: number,
   active: boolean,
 ): Promise<MonitoredTarget> {
-  const response = await fetch(`${API_URL}/monitoring/targets/${targetId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ active }),
-  });
-  return parseResponse<MonitoredTarget>(response, "No se pudo actualizar el dominio");
+  return request<MonitoredTarget>(
+    `/monitoring/targets/${targetId}`,
+    { method: "PATCH", body: JSON.stringify({ active }) },
+    "No se pudo actualizar el dominio",
+  );
 }
 
 export async function deleteMonitoredTarget(targetId: number): Promise<void> {
-  const response = await fetch(`${API_URL}/monitoring/targets/${targetId}`, {
-    method: "DELETE",
-  });
-  if (!response.ok) {
-    throw new Error(`No se pudo eliminar el dominio (${response.status})`);
-  }
+  await request<{ deleted: boolean }>(
+    `/monitoring/targets/${targetId}`,
+    { method: "DELETE" },
+    "No se pudo eliminar el dominio",
+  );
 }

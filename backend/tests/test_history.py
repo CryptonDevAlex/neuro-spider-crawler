@@ -1,15 +1,17 @@
 from datetime import UTC, datetime
 from uuid import uuid4
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import StaticPool
 
-from app.db.database import Base, get_session
-from app.db.repository import get_scan, list_scans, save_scan, upsert_monitored_target
-from app.main import app
+from app.core.security import hash_password
+from app.db.models import User
+from app.db.repository import (
+    create_user,
+    list_monitored_targets,
+    list_scans,
+    save_scan,
+)
 from app.models.security import (
     Finding,
     ScanResult,
@@ -17,18 +19,6 @@ from app.models.security import (
     SecuritySummary,
     Severity,
 )
-
-
-@pytest.fixture
-def session() -> Session:
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    Base.metadata.create_all(engine)
-    with Session(engine) as db:
-        yield db
 
 
 def build_result(finding_id: str, domain: str = "example.com") -> ScanResult:
@@ -62,66 +52,82 @@ def build_result(finding_id: str, domain: str = "example.com") -> ScanResult:
     )
 
 
-def test_save_and_list_scans(session: Session) -> None:
+def test_save_and_list_scans(session: Session, user: User) -> None:
     result = build_result("tls-high")
 
-    save_scan(session, result)
-    stored = get_scan(session, result.scan_id)
+    save_scan(session, result, user.id)
 
-    assert stored is not None
-    assert stored.domain == "example.com"
-    assert stored.engine_ia == "Groq (GPT-OSS 20B)"
-    assert stored.subdomains == ["api.example.com"]
-    assert len(list_scans(session)) == 1
+    assert len(list_scans(session, user.id)) == 1
+    assert list_scans(session, user.id)[0].domain == "example.com"
 
 
-def test_history_and_compare_endpoints(session: Session) -> None:
+def test_history_compare_and_ownership(
+    session: Session,
+    user: User,
+    authorized_client: TestClient,
+    client_for_user,
+) -> None:
     base = build_result("old-high")
     target = build_result("new-high")
-    save_scan(session, base)
-    save_scan(session, target)
-    app.dependency_overrides[get_session] = lambda: session
+    save_scan(session, base, user.id)
+    save_scan(session, target, user.id)
+    other = create_user(
+        session,
+        email="other@neurospider.local",
+        password_hash=hash_password("password123"),
+        full_name="Otro operador",
+    )
+    other_client = client_for_user(other)
 
-    try:
-        client = TestClient(app)
-        history = client.get("/scans/history")
-        comparison = client.get(
-            "/scans/compare",
-            params={"base_id": str(base.scan_id), "target_id": str(target.scan_id)},
-        )
-        stored = client.get(f"/scans/{target.scan_id}")
-    finally:
-        app.dependency_overrides.clear()
+    history = authorized_client.get("/scans/history")
+    comparison = authorized_client.get(
+        "/scans/compare",
+        params={"base_id": str(base.scan_id), "target_id": str(target.scan_id)},
+    )
+    stored = authorized_client.get(f"/scans/{target.scan_id}")
+    foreign_stored = other_client.get(f"/scans/{target.scan_id}")
+    foreign_delete = other_client.delete(f"/scans/{target.scan_id}")
+    deleted = authorized_client.delete(f"/scans/{target.scan_id}")
+    remaining = authorized_client.get("/scans/history")
 
     assert history.status_code == 200
     assert len(history.json()) == 2
     assert comparison.status_code == 200
-    payload = comparison.json()
-    assert payload["counts"] == {"resolved": 1, "new": 1, "persistent": 0}
+    assert comparison.json()["counts"] == {"resolved": 1, "new": 1, "persistent": 0}
     assert stored.status_code == 200
-    assert stored.json()["scan_id"] == str(target.scan_id)
+    assert foreign_stored.status_code == 404
+    assert foreign_delete.status_code == 404
+    assert deleted.status_code == 200
+    assert len(remaining.json()) == 1
 
 
-def test_monitoring_target_endpoints(session: Session) -> None:
-    app.dependency_overrides[get_session] = lambda: session
+def test_monitoring_targets_are_private(
+    session: Session,
+    user: User,
+    authorized_client: TestClient,
+    client_for_user,
+) -> None:
+    other = create_user(
+        session,
+        email="monitoring@neurospider.local",
+        password_hash=hash_password("password123"),
+        full_name="Monitor",
+    )
+    other_client = client_for_user(other)
 
-    try:
-        client = TestClient(app)
-        created = client.post(
-            "/monitoring/targets",
-            json={"domain": "https://example.com", "frequency": "weekly"},
-        )
-        listed = client.get("/monitoring/targets")
-        updated = client.patch(
-            f"/monitoring/targets/{created.json()['id']}",
-            json={"active": False},
-        )
-    finally:
-        app.dependency_overrides.clear()
+    created = authorized_client.post(
+        "/monitoring/targets",
+        json={"domain": "https://example.com", "frequency": "weekly"},
+    )
+    foreign_created = other_client.post(
+        "/monitoring/targets",
+        json={"domain": "https://example.com", "frequency": "daily"},
+    )
+    listed = authorized_client.get("/monitoring/targets")
+    foreign_listed = other_client.get("/monitoring/targets")
 
     assert created.status_code == 201
-    assert created.json()["domain"] == "example.com"
-    assert listed.status_code == 200
-    assert updated.json()["active"] is False
-    assert len(list_scans(session)) == 0
-    assert upsert_monitored_target(session, "example.com", "daily").active is True
+    assert foreign_created.status_code == 201
+    assert len(listed.json()) == 1
+    assert len(foreign_listed.json()) == 1
+    assert len(list_monitored_targets(session, user.id)) == 1

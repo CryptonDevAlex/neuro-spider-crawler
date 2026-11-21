@@ -2,21 +2,70 @@ from collections.abc import Sequence
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.domain import normalize_domain
-from app.db.models import MonitoredTarget, ScanRecord
+from app.db.models import MonitoredTarget, ScanRecord, User
 from app.models.security import ScanResult
+
+
+def get_user(session: Session, user_id: int) -> User | None:
+    return session.get(User, user_id)
+
+
+def get_user_by_email(session: Session, email: str) -> User | None:
+    return session.scalar(select(User).where(func.lower(User.email) == email.strip().lower()))
+
+
+def get_user_by_identity(session: Session, identity: str) -> User | None:
+    value = identity.strip().lower()
+    return session.scalar(
+        select(User).where(
+            or_(func.lower(User.email) == value, func.lower(User.full_name) == value)
+        )
+    )
+
+
+def get_user_by_google_id(session: Session, google_id: str) -> User | None:
+    return session.scalar(select(User).where(User.google_id == google_id))
+
+
+def create_user(
+    session: Session,
+    email: str,
+    password_hash: str | None,
+    full_name: str,
+    google_id: str | None = None,
+) -> User:
+    user = User(
+        email=email.strip().lower(),
+        password_hash=password_hash,
+        full_name=full_name.strip(),
+        google_id=google_id,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def link_google_id(session: Session, user: User, google_id: str) -> User:
+    user.google_id = google_id
+    session.commit()
+    session.refresh(user)
+    return user
 
 
 def save_scan(
     session: Session,
     result: ScanResult,
+    user_id: int,
     domain: str | None = None,
 ) -> ScanRecord:
     record = ScanRecord(
         scan_id=str(result.scan_id),
+        user_id=user_id,
         domain=domain or normalize_domain(result.target),
         target=result.target,
         status=result.status.value,
@@ -35,40 +84,59 @@ def save_scan(
     return record
 
 
-def list_scans(session: Session, limit: int = 100) -> Sequence[ScanRecord]:
+def list_scans(session: Session, user_id: int, limit: int = 100) -> Sequence[ScanRecord]:
     return (
         session.execute(
-            select(ScanRecord).order_by(ScanRecord.created_at.desc()).limit(limit)
+            select(ScanRecord)
+            .where(ScanRecord.user_id == user_id)
+            .order_by(ScanRecord.created_at.desc())
+            .limit(limit)
         )
         .scalars()
         .all()
     )
 
 
-def get_scan(session: Session, scan_id: UUID | str) -> ScanRecord | None:
-    return session.scalar(select(ScanRecord).where(ScanRecord.scan_id == str(scan_id)))
+def get_scan(session: Session, scan_id: UUID | str, user_id: int | None = None) -> ScanRecord | None:
+    statement = select(ScanRecord).where(ScanRecord.scan_id == str(scan_id))
+    if user_id is not None:
+        statement = statement.where(ScanRecord.user_id == user_id)
+    return session.scalar(statement)
 
 
-def latest_scan_for_domain(session: Session, domain: str) -> ScanRecord | None:
+def delete_scan(session: Session, record: ScanRecord) -> None:
+    session.delete(record)
+    session.commit()
+
+
+def latest_scan_for_domain(
+    session: Session,
+    domain: str,
+    user_id: int,
+) -> ScanRecord | None:
     return session.scalar(
         select(ScanRecord)
-        .where(ScanRecord.domain == normalize_domain(domain))
+        .where(ScanRecord.user_id == user_id, ScanRecord.domain == normalize_domain(domain))
         .order_by(ScanRecord.created_at.desc())
     )
 
 
 def upsert_monitored_target(
     session: Session,
+    user_id: int,
     domain: str,
     frequency: str,
     webhook_url: str | None = None,
 ) -> MonitoredTarget:
     normalized = normalize_domain(domain)
     target = session.scalar(
-        select(MonitoredTarget).where(MonitoredTarget.domain == normalized)
+        select(MonitoredTarget).where(
+            MonitoredTarget.user_id == user_id,
+            MonitoredTarget.domain == normalized,
+        )
     )
     if target is None:
-        target = MonitoredTarget(domain=normalized)
+        target = MonitoredTarget(domain=normalized, user_id=user_id)
         session.add(target)
 
     target.frequency = frequency
@@ -79,16 +147,29 @@ def upsert_monitored_target(
     return target
 
 
-def list_monitored_targets(session: Session) -> Sequence[MonitoredTarget]:
+def list_monitored_targets(session: Session, user_id: int) -> Sequence[MonitoredTarget]:
     return (
-        session.execute(select(MonitoredTarget).order_by(MonitoredTarget.domain))
+        session.execute(
+            select(MonitoredTarget)
+            .where(MonitoredTarget.user_id == user_id)
+            .order_by(MonitoredTarget.domain)
+        )
         .scalars()
         .all()
     )
 
 
-def get_monitored_target(session: Session, target_id: int) -> MonitoredTarget | None:
-    return session.get(MonitoredTarget, target_id)
+def get_monitored_target(
+    session: Session,
+    target_id: int,
+    user_id: int,
+) -> MonitoredTarget | None:
+    return session.scalar(
+        select(MonitoredTarget).where(
+            MonitoredTarget.id == target_id,
+            MonitoredTarget.user_id == user_id,
+        )
+    )
 
 
 def set_monitored_active(

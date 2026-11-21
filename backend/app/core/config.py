@@ -35,6 +35,17 @@ class Settings(BaseSettings):
     database_path: str = "data/neurospider.db"
     monitoring_webhook_url: str = ""
 
+    admin_user: str = "CryptonDevAlex"
+    admin_email: str = "admin@neurospider.local"
+    admin_password: str = "admin1234"
+    jwt_secret_key: str = "cambia-esta-clave-secreta"
+    access_token_expire_minutes: int = 10080
+
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    google_redirect_uri: str = "http://127.0.0.1:8000/auth/google/callback"
+    frontend_url: str = "http://127.0.0.1:3000"
+
 
 @lru_cache
 def get_settings() -> Settings:

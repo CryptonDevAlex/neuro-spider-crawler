@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
+
+import { LoginScreen } from "@/components/auth/LoginScreen";
 import { SpiderGraph } from "@/components/crawler/SpiderGraph";
 import { UrlInput } from "@/components/crawler/UrlInput";
 import { AppShell } from "@/components/layout/AppShell";
@@ -7,11 +10,32 @@ import { ResultsPanel } from "@/components/results/ResultsPanel";
 import { HistoryPanel } from "@/components/suite/HistoryPanel";
 import { MonitoringPanel } from "@/components/suite/MonitoringPanel";
 import { useScanStream } from "@/hooks/useScanStream";
+import { useAuthStore } from "@/store/auth-store";
 import { useUiStore } from "@/store/ui-store";
 
 export default function Home() {
   useScanStream();
   const view = useUiStore((state) => state.view);
+  const authStatus = useAuthStore((state) => state.status);
+  const hydrate = useAuthStore((state) => state.hydrate);
+
+  useEffect(() => {
+    void hydrate();
+  }, [hydrate]);
+
+  if (authStatus === "checking") {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-terminal-bg">
+        <p className="text-[10px] uppercase tracking-[0.3em] text-terminal-accent">
+          verificando sesión...
+        </p>
+      </main>
+    );
+  }
+
+  if (authStatus === "anonymous") {
+    return <LoginScreen />;
+  }
 
   return (
     <AppShell>
