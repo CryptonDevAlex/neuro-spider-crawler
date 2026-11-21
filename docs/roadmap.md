@@ -49,3 +49,12 @@
 - [x] Descubrimiento pasivo de subdominios con crt.sh
 - [x] Detección de WAF/CDN en UI y PDF
 - [x] Vigilancia 24/7 con APScheduler y webhooks
+
+## Fase 6 — Plataforma multiusuario SaaS
+
+- [x] Tabla `users`, registro local con bcrypt y login por correo
+- [x] JWT de 7 días con subject `user.id` y cookie `httpOnly`
+- [x] Google OAuth2/OIDC opcional con validación de `state`
+- [x] Historial, comparador, informes y vigilancia privados por `user_id`
+- [x] Eliminación de escaneos con limpieza de SQLite, memoria y archivos
+- [x] UI de registro y botón prioritario de acceso con Google

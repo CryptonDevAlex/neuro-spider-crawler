@@ -31,6 +31,8 @@ Reglas de desarrollo para NeuroSpider. Aplican a personas y agentes de IA.
 - Los hallazgos se clasifican con `CRITICO`, `ALTO`, `MEDIO`, `BAJO` o `INFO`.
 - Los endpoints de SSE deben emitir eventos tipados: `status`, `node`, `finding`, `summary`, `error`, `done`.
 - Errores controlados: timeout y fallo de navegación se convierten en eventos `error`, no en excepciones sin manejar.
+- Toda lectura o escritura de escaneos, informes e objetivos vigilados debe filtrarse por el `user_id` autenticado.
+- El registro local usa bcrypt; el JWT usa `user.id` como subject y se entrega también como cookie `httpOnly`.
 - Antes de terminar: `ruff check .`, `mypy app` y `pytest`.
 
 ## Frontend (`frontend/`)
@@ -41,7 +43,8 @@ Reglas de desarrollo para NeuroSpider. Aplican a personas y agentes de IA.
 - La conexión SSE se encapsula en `useScanStream`; los componentes solo consumen estado.
 - Los eventos repetidos por reconexión SSE deben deduplicarse por identificador.
 - La animación SVG debe degradarse con gracia y ser accesible (`aria-label`, `prefers-reduced-motion`).
-- Evitar `any`. Usar los tipos de `src/lib/types.ts`.
+- Evitar `any`. Usar los tipos de `src/lib/types.ts`; la sesión expone `id`, `email`, `full_name` y `role`.
+- La UI de acceso incluye login por correo, registro local y botón de Google OIDC cuando esté configurado.
 - Antes de terminar: `npm run lint`, `npm run typecheck` y `npm run build`.
 
 ## Alcance por fases
@@ -50,6 +53,7 @@ Reglas de desarrollo para NeuroSpider. Aplican a personas y agentes de IA.
 2. **Fase 2:** navegación, SSE y UI en vivo.
 3. **Fase 3:** reconocimiento pasivo de seguridad, informe Markdown y pruebas.
 4. **Fase 4:** robustez, persistencia local y despliegue.
-5. **Fase 5 (actual):** historial, comparador, reconocimiento ampliado y vigilancia continua.
+5. **Fase 5:** historial, comparador, reconocimiento ampliado y vigilancia continua.
+6. **Fase 6 (actual):** plataforma multiusuario SaaS con registro local, Google OIDC, historial privado por `user_id` y borrado completo de informes.
 
 No implementar fases futuras sin que el usuario lo solicite.

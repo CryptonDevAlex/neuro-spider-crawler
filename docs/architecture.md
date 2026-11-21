@@ -7,13 +7,17 @@ NeuroSpider es un sistema de dos procesos:
 1. **Backend (FastAPI):** orquesta la navegación con Playwright, extrae superficie expuesta y analiza hallazgos de seguridad pasiva.
 2. **Frontend (Next.js):** consume eventos SSE, dibuja el mapa de la araña y muestra métricas, hallazgos e informe exportable.
 
-El resultado vive en memoria durante el escaneo y se persiste al finalizar en SQLite local (`backend/data/neurospider.db`). No se requiere servidor de base de datos externo.
+El resultado vive en memoria durante el escaneo y se persiste al finalizar en SQLite local (`backend/data/neurospider.db`), junto a las cuentas, sesiones de auditoría y dominios vigilados. No se requiere servidor de base de datos externo.
 
 ## Componentes del backend
 
 | Módulo | Responsabilidad |
 | --- | --- |
-| `app/api/routes/crawl.py` | HTTP: crear scan, consultar resultado, suscribirse a SSE y descargar Markdown/PDF |
+| `app/api/routes/auth.py` | Registro local, login JWT, Google OIDC, logout y usuario autenticado |
+| `app/api/deps.py` | Verificación Bearer/cookie, resolución de `AuthenticatedUser` y dependencias |
+| `app/core/security.py` | Hash bcrypt, emisión y validación de JWT con `user_id` como subject |
+| `app/services/google_auth.py` | URL de autorización, intercambio de código y perfil OIDC de Google |
+| `app/api/routes/crawl.py` | HTTP protegido: crear scan, consultar resultado, SSE y descargas |
 | `app/services/crawler_service.py` | Orquestación del flujo, modo auditoría y emisión de eventos |
 | `app/crawler/policy.py` | Profundidad, páginas, delay, timeout y User-Agent Chrome |
 | `app/crawler/browser.py` | Ciclo de vida del navegador Playwright |
@@ -27,20 +31,23 @@ El resultado vive en memoria durante el escaneo y se persiste al finalizar en SQ
 | `app/analysis/technologies.py` | Servidor, frameworks y cookies |
 | `app/analysis/subdomains.py` | Subdominios pasivos desde Certificate Transparency (crt.sh) |
 | `app/analysis/waf.py` | Huellas de WAF/CDN desde cabeceras y cookies |
-| `app/db/` | Modelos SQLAlchemy, sesión, repositorios y SQLite local |
-| `app/api/routes/history.py` | Historial, recuperación y comparación de escaneos |
+| `app/db/` | Modelos `User`/`ScanRecord`/`MonitoredTarget`, sesión, migraciones ligeras y repositorios por `user_id` |
+| `app/api/routes/history.py` | Historial, recuperación, comparación y eliminación de escaneos |
 | `app/api/routes/monitoring.py` | Altas, pausas y bajas de dominios vigilados |
 | `app/services/monitoring_service.py` | APScheduler, re-escaneo y alertas webhook |
 | `app/analysis/analyzer.py` | Consolidación de hallazgos, severidades y diagnóstico |
 | `app/analysis/executive_summary.py` | Diagnóstico con OpenAI/Gemini opcional y fallback local |
 | `app/services/export_service.py` | Informe Markdown profesional |
 | `app/services/pdf_service.py` | Informe PDF corporativo con fpdf2 |
+| `app/services/report_store.py` | Limpieza de PDF/Markdown cacheados al eliminar un scan |
 
 ## Componentes del frontend
 
 | Módulo | Responsabilidad |
 | --- | --- |
-| `src/app/page.tsx` | Layout dividido izquierda/derecha |
+| `src/app/page.tsx` | Puerta de login y layout dividido izquierda/derecha |
+| `src/components/auth/LoginScreen.tsx` | Acceso Red Team con login, registro y botón Google OIDC |
+| `src/store/auth-store.ts` | Hidración de sesión, login, registro, Google y logout |
 | `src/components/crawler/SpiderMap.tsx` | SVG animado de la araña y nodos |
 | `src/hooks/useScanStream.ts` | Suscripción SSE y deduplicación de eventos |
 | `src/store/scan-store.ts` | Estado global del escaneo |
@@ -61,6 +68,10 @@ El resultado vive en memoria durante el escaneo y se persiste al finalizar en SQ
 - **Deduplicación en cliente:** evita duplicados cuando EventSource se reconecta y reproduce eventos previos.
 - **SQLite local:** el historial y la vigilancia no dependen de infraestructura externa; la base se ignora en Git.
 - **Reconocimiento pasivo ampliado:** crt.sh solo consulta certificados públicos y la detección de WAF/CDN se basa en cabeceras y cookies observadas, sin sondeo activo.
+- **Sesión JWT sin token en JavaScript:** el login/registro devuelve el JWT y lo guarda como cookie `httpOnly`; el frontend usa el rewrite `/api-backend` para mantener la cookie en el mismo sitio.
+- **Aislamiento multiusuario:** `users`, `scans` y `monitored_targets` se relacionan por `user_id`; listados, recuperación, SSE, informes, comparación, borrado y vigilancia validan propiedad antes de actuar.
+- **Google opcional:** OIDC es complementario al registro local; si faltan credenciales, la UI informa el estado en lugar de redireccionar a un proveedor no configurado.
+- **Eliminación completa:** borrar un scan limpia SQLite, memoria y archivos de informe con identificador UUID validado.
 
 ## Riesgos y límites
 

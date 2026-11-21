@@ -4,7 +4,51 @@ Base URL: `http://127.0.0.1:8000`
 
 Todas las operaciones están pensadas para reconocimiento pasivo sobre alcances autorizados.
 
+Salvo `GET /health` y los endpoints públicos de `/auth`, los endpoints exigen `Authorization: Bearer <token>` o la cookie `httpOnly` emitida por el login. Todas las operaciones de escaneo, historial, informes y vigilancia filtran por el `user_id` del token; un usuario no puede ver, comparar ni borrar auditorías ajenas.
+
 ## Endpoints
+
+### `POST /auth/register`
+
+Request:
+
+```json
+{ "full_name": "Operador", "email": "operador@empresa.com", "password": "password123" }
+```
+
+Response `200`: JWT con expiración de 7 días y cookie `httpOnly`.
+
+### `POST /auth/login`
+
+Request:
+
+```json
+{ "email": "operador@empresa.com", "password": "password123" }
+```
+
+Response `200`:
+
+```json
+{ "access_token": "<jwt>", "token_type": "bearer", "expires_in": 604800 }
+```
+
+Además devuelve `Set-Cookie: neurospider_token=<jwt>; HttpOnly; SameSite=Lax`.
+
+### `GET /auth/google/login`
+
+Redirecciona a Google OIDC. Si `GOOGLE_CLIENT_ID` o `GOOGLE_CLIENT_SECRET` no están configurados, responde `503` con un mensaje informativo.
+
+### `GET /auth/google/callback`
+
+Valida `state`, intercambia el código, obtiene el perfil y crea o vincula la cuenta por correo/`google_id`, luego redirecciona a `FRONTEND_URL` con la cookie de sesión.
+
+### `POST /auth/logout`
+
+Elimina la cookie de sesión.
+
+### `GET /auth/me`
+
+Devuelve `{ "id": 1, "email": "...", "full_name": "...", "role": "admin" | "user" }` para el token vigente y la cuenta existente en SQLite.
 
 ### `POST /scan`
 
@@ -45,31 +89,35 @@ Descarga un informe PDF corporativo con encabezado oscuro, resumen ejecutivo, ta
 
 ### `GET /scans/history`
 
-Devuelve el historial de escaneos persistidos en SQLite, ordenado del más reciente al más antiguo.
+Devuelve el historial del usuario autenticado, ordenado del más reciente al más antiguo.
 
 ### `GET /scans/{scan_id}`
 
-Devuelve un escaneo guardado con el mismo contrato que `GET /scan/{scan_id}` para recargarlo en pantalla.
+Devuelve un escaneo guardado del usuario autenticado con el mismo contrato que `GET /scan/{scan_id}`. Un identificador ajeno responde `404`.
+
+### `DELETE /scans/{scan_id}`
+
+Elimina el registro SQLite, la entrada en memoria y cualquier PDF/Markdown cacheado asociado al escaneo, solo si pertenece al usuario autenticado.
 
 ### `GET /scans/compare?base_id=...&target_id=...`
 
-Compara dos escaneos del mismo dominio y devuelve `resolved`, `new`, `persistent` y `counts`.
+Compara dos escaneos del usuario autenticado pertenecientes al mismo dominio y devuelve `resolved`, `new`, `persistent` y `counts`.
 
 ### `GET /monitoring/targets`
 
-Lista los dominios en vigilancia continua.
+Lista los dominios en vigilancia continua del usuario autenticado.
 
 ### `POST /monitoring/targets`
 
-Registra o actualiza un dominio vigilado con `domain`, `frequency` (`daily`/`weekly`) y `webhook_url` opcional.
+Registra o actualiza un dominio vigilado del usuario autenticado con `domain`, `frequency` (`daily`/`weekly`) y `webhook_url` opcional. El mismo dominio puede ser vigilado por cuentas distintas.
 
 ### `PATCH /monitoring/targets/{target_id}`
 
-Activa o pausa un dominio vigilado con `{ "active": true|false }`.
+Activa o pausa un dominio vigilado propio con `{ "active": true|false }`.
 
 ### `DELETE /monitoring/targets/{target_id}`
 
-Elimina un dominio vigilado.
+Elimina un dominio vigilado propio.
 
 ## Eventos
 
