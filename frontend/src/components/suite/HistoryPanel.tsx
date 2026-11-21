@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { Panel } from "@/components/ui/Panel";
 import {
   compareStoredScans,
+  deleteStoredScan,
+  fetchReport,
   fetchScanHistory,
   fetchStoredScan,
-  pdfReportUrl,
 } from "@/lib/api";
 import type { ScanComparison, ScanComparisonFinding, ScanHistoryItem } from "@/lib/types";
 import { formatNumber, severityTone, type BadgeTone } from "@/lib/utils";
@@ -75,8 +76,15 @@ export function HistoryPanel() {
     try {
       const history = await fetchScanHistory();
       setItems(history);
-      setBaseId((current) => current || history[1]?.scan_id || history[0]?.scan_id || "");
-      setTargetId((current) => current || history[0]?.scan_id || "");
+      const ids = new Set(history.map((item) => item.scan_id));
+      setBaseId((current) =>
+        current && ids.has(current)
+          ? current
+          : history[1]?.scan_id || history[0]?.scan_id || "",
+      );
+      setTargetId((current) =>
+        current && ids.has(current) ? current : history[0]?.scan_id || "",
+      );
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo cargar el historial");
     } finally {
@@ -107,13 +115,33 @@ export function HistoryPanel() {
   const handlePdf = async (scanId: string) => {
     setError(null);
     try {
-      const response = await fetch(pdfReportUrl(scanId));
-      if (!response.ok) {
-        throw new Error(`No se pudo generar el PDF (${response.status})`);
-      }
-      downloadBlob(await response.blob(), `neurospider-audit-${scanId}.pdf`);
+      const blob = await fetchReport(scanId, "pdf");
+      downloadBlob(blob, `neurospider-audit-${scanId}.pdf`);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "No se pudo descargar el PDF");
+    }
+  };
+
+  const handleDelete = async (item: ScanHistoryItem) => {
+    const confirmed = window.confirm(
+      `¿Eliminar la auditoría de ${item.domain} del ${new Date(item.created_at).toLocaleString("es-ES")}? Esta acción no se puede deshacer.`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    try {
+      await deleteStoredScan(item.scan_id);
+      setComparison(null);
+      setBaseId("");
+      setTargetId("");
+      await loadHistory();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "No se pudo eliminar la auditoría");
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -172,6 +200,13 @@ export function HistoryPanel() {
                   </Button>
                   <Button variant="ghost" onClick={() => void handlePdf(item.scan_id)}>
                     PDF
+                  </Button>
+                  <Button
+                    variant="danger"
+                    disabled={busy}
+                    onClick={() => void handleDelete(item)}
+                  >
+                    ELIMINAR
                   </Button>
                 </div>
               </div>

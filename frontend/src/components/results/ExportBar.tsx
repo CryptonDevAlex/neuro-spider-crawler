@@ -3,7 +3,7 @@
 import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
-import { pdfReportUrl, reportUrl } from "@/lib/api";
+import { fetchReport } from "@/lib/api";
 import { useScanStore } from "@/store/scan-store";
 
 type ExportFormat = "markdown" | "pdf";
@@ -32,16 +32,12 @@ export function ExportBar() {
     setError(null);
 
     try {
-      const url = format === "pdf" ? pdfReportUrl(scanId) : reportUrl(scanId);
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`No se pudo generar el informe (${response.status})`);
-      }
+      const blob = await fetchReport(scanId, format === "pdf" ? "pdf" : "md");
       const filename =
         format === "pdf"
           ? `neurospider-audit-${scanId}.pdf`
           : `neurospider-${scanId}.md`;
-      download(await response.blob(), filename);
+      download(blob, filename);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Error desconocido");
     } finally {
