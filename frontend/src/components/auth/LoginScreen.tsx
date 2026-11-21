@@ -2,31 +2,27 @@
 
 import { type FormEvent, useState } from "react";
 
+import { RegisterModal } from "@/components/auth/RegisterModal";
 import { Button } from "@/components/ui/Button";
-import { googleLoginUrl } from "@/lib/api";
+import { checkGoogleAvailability, googleLoginUrl } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-
-type AuthMode = "login" | "register";
 
 export function LoginScreen() {
   const signIn = useAuthStore((state) => state.signIn);
-  const signUp = useAuthStore((state) => state.signUp);
   const error = useAuthStore((state) => state.error);
-  const [mode, setMode] = useState<AuthMode>("login");
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("admin@neurospider.local");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
+  const [googleNotice, setGoogleNotice] = useState<string | null>(null);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleLogin = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setGoogleNotice(null);
     setLoading(true);
     try {
-      if (mode === "login") {
-        await signIn({ email, password });
-      } else {
-        await signUp({ full_name: fullName, email, password });
-      }
+      await signIn({ email, password });
     } catch {
       return;
     } finally {
@@ -34,8 +30,18 @@ export function LoginScreen() {
     }
   };
 
-  const handleGoogle = () => {
-    window.location.assign(googleLoginUrl());
+  const handleGoogle = async () => {
+    setGoogleNotice(null);
+    setGoogleLoading(true);
+    const availability = await checkGoogleAvailability();
+    setGoogleLoading(false);
+
+    if (availability.available) {
+      window.location.assign(googleLoginUrl());
+      return;
+    }
+
+    setGoogleNotice(availability.message);
   };
 
   return (
@@ -52,18 +58,18 @@ export function LoginScreen() {
               <span className="block text-terminal-accent">Red Team / OSINT</span>
             </h1>
             <p className="mt-4 text-xs leading-relaxed text-terminal-muted">
-              Cada cuenta conserva su propio historial, comparador y vigilancia en SQLite. El
-              acceso se valida con JWT y cookies httpOnly.
+              Cuenta local en SQLite o acceso corporativo con Google. Cada sesión conserva su
+              historial, comparador y vigilancia de forma privada.
             </p>
           </div>
           <div className="relative mt-10 space-y-2 text-[10px] uppercase tracking-widest text-terminal-muted">
             <p className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-terminal-signal" />
-              cuentas locales + Google OIDC
+              registro local en sqlite
             </p>
             <p className="flex items-center gap-2">
               <span className="h-1.5 w-1.5 rounded-full bg-terminal-accent" />
-              datos privados por user_id
+              google oidc opcional
             </p>
           </div>
         </section>
@@ -74,32 +80,14 @@ export function LoginScreen() {
               NS
             </div>
             <h2 className="mt-6 text-lg font-semibold tracking-wide text-terminal-text">
-              {mode === "login" ? "INICIAR SESIÓN" : "CREAR CUENTA"}
+              INICIAR SESIÓN
             </h2>
             <p className="mt-1 text-[11px] text-terminal-muted">
-              {mode === "login"
-                ? "Acceso restringido a operadores autorizados."
-                : "Registro local: tus auditorías serán privadas."}
+              Introduce tus credenciales para entrar al panel.
             </p>
           </div>
 
-          <form onSubmit={(event) => void handleSubmit(event)} className="space-y-4">
-            {mode === "register" ? (
-              <label className="block space-y-1">
-                <span className="text-[10px] uppercase tracking-widest text-terminal-muted">
-                  nombre completo
-                </span>
-                <input
-                  type="text"
-                  required
-                  autoComplete="name"
-                  value={fullName}
-                  onChange={(event) => setFullName(event.target.value)}
-                  className="w-full rounded border border-terminal-border bg-terminal-bg px-3 py-2 text-sm text-terminal-text outline-none placeholder:text-terminal-muted focus:border-terminal-accent"
-                  placeholder="Operador Alpha"
-                />
-              </label>
-            ) : null}
+          <form onSubmit={(event) => void handleLogin(event)} className="space-y-4">
             <label className="block space-y-1">
               <span className="text-[10px] uppercase tracking-widest text-terminal-muted">
                 correo electrónico
@@ -114,6 +102,7 @@ export function LoginScreen() {
                 placeholder="operador@empresa.com"
               />
             </label>
+
             <label className="block space-y-1">
               <span className="text-[10px] uppercase tracking-widest text-terminal-muted">
                 contraseña
@@ -121,37 +110,80 @@ export function LoginScreen() {
               <input
                 type="password"
                 required
-                minLength={mode === "register" ? 8 : 1}
-                autoComplete={mode === "login" ? "current-password" : "new-password"}
+                autoComplete="current-password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full rounded border border-terminal-border bg-terminal-bg px-3 py-2 text-sm text-terminal-text outline-none placeholder:text-terminal-muted focus:border-terminal-accent"
                 placeholder="••••••••"
               />
             </label>
+
             {error ? <p className="text-[11px] text-terminal-alert">{error}</p> : null}
+
             <Button type="submit" disabled={loading} className="w-full">
-              {loading ? "verificando..." : mode === "login" ? "entrar al panel" : "registrar cuenta"}
+              {loading ? "verificando..." : "entrar al panel"}
             </Button>
           </form>
 
-          <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-terminal-border" />
-            <span className="text-[9px] uppercase tracking-widest text-terminal-muted">o</span>
-            <span className="h-px flex-1 bg-terminal-border" />
+          {googleNotice ? (
+            <div
+              role="status"
+              className="mt-5 rounded border border-terminal-accent/40 bg-terminal-accent/5 p-3"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-semibold uppercase tracking-widest text-terminal-accent">
+                  aviso
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setGoogleNotice(null)}
+                  aria-label="Cerrar aviso"
+                  className="text-terminal-muted hover:text-terminal-text"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-terminal-text">{googleNotice}</p>
+            </div>
+          ) : null}
+
+          <div className="mt-6 border-t border-terminal-border pt-5">
+            <p className="mb-3 text-[10px] uppercase tracking-widest text-terminal-muted">
+              otras formas de acceso
+            </p>
+            <div className="space-y-3">
+              <div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => {
+                    setGoogleNotice(null);
+                    setShowRegister(true);
+                  }}
+                  className="w-full"
+                >
+                  registrarse
+                </Button>
+                <p className="mt-1 text-[10px] text-terminal-muted">
+                  Crea una cuenta local en SQLite y entra automáticamente.
+                </p>
+              </div>
+              <div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => void handleGoogle()}
+                  disabled={googleLoading}
+                  className="w-full"
+                >
+                  {googleLoading ? "verificando google..." : "continuar con google"}
+                </Button>
+                <p className="mt-1 text-[10px] text-terminal-muted">
+                  OAuth2 corporativo; disponible si el servidor está configurado.
+                </p>
+              </div>
+            </div>
           </div>
-
-          <Button variant="ghost" onClick={handleGoogle} className="w-full">
-            iniciar sesión / registrarse con google
-          </Button>
-
-          <button
-            type="button"
-            onClick={() => setMode(mode === "login" ? "register" : "login")}
-            className="mt-5 text-[10px] uppercase tracking-widest text-terminal-accent hover:underline"
-          >
-            {mode === "login" ? "crear cuenta" : "volver al inicio de sesión"}
-          </button>
 
           <p className="mt-6 text-[10px] leading-relaxed text-terminal-muted">
             Usuario inicial: <span className="text-terminal-text">admin@neurospider.local</span> ·{" "}
@@ -160,6 +192,8 @@ export function LoginScreen() {
           </p>
         </section>
       </div>
+
+      {showRegister ? <RegisterModal onClose={() => setShowRegister(false)} /> : null}
     </main>
   );
 }

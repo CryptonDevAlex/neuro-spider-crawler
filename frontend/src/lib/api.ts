@@ -63,6 +63,44 @@ export function googleLoginUrl(): string {
   return `${API_URL}/auth/google/login`;
 }
 
+export type GoogleAvailability =
+  | { available: true }
+  | { available: false; message: string };
+
+export async function checkGoogleAvailability(): Promise<GoogleAvailability> {
+  try {
+    const response = await fetch(googleLoginUrl(), {
+      method: "GET",
+      credentials: "include",
+      redirect: "manual",
+      headers: { Accept: "application/json" },
+    });
+
+    if (
+      response.type === "opaqueredirect" ||
+      response.status === 0 ||
+      (response.status >= 300 && response.status < 400)
+    ) {
+      return { available: true };
+    }
+
+    if (!response.ok) {
+      return {
+        available: false,
+        message:
+          "Google OAuth aún no está configurado en el servidor; usa 'Registrarse' para crear tu cuenta local al instante",
+      };
+    }
+
+    return { available: true };
+  } catch {
+    return {
+      available: false,
+      message: "No se pudo verificar Google OAuth en este momento; inténtalo de nuevo.",
+    };
+  }
+}
+
 export async function fetchCurrentUser(): Promise<AuthUser> {
   return request<AuthUser>(
     "/auth/me",
