@@ -153,13 +153,13 @@ npm run dev -- --hostname 127.0.0.1 --port 3000
 
 | View | Preview |
 |------|---------|
-| **Login / Terminal UI** | [INSERT_SCREENSHOT_LOGIN_HERE] |
-| **Live SpiderMap + SSE Stream** | [INSERT_SCREENSHOT_MAP_HERE] |
-| **Findings Panel + Severity Breakdown** | [INSERT_SCREENSHOT_FINDINGS_HERE] |
-| **Executive Diagnostic (AI/Local)** | [INSERT_SCREENSHOT_DIAGNOSTIC_HERE] |
-| **History & Diff Comparison** | [INSERT_SCREENSHOT_HISTORY_HERE] |
-| **24/7 Monitoring Dashboard** | [INSERT_SCREENSHOT_MONITORING_HERE] |
-| **Markdown / PDF Report Export** | [INSERT_SCREENSHOT_REPORT_HERE] |
+| **Login / Terminal UI** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **Live SpiderMap + SSE Stream** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **Findings Panel + Severity Breakdown** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **Executive Diagnostic (AI/Local)** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **History & Diff Comparison** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **24/7 Monitoring Dashboard** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
+| **Markdown / PDF Report Export** | ![Preview coming soon](https://img.shields.io/badge/Preview-coming_soon-lightgrey?style=flat-square) |
 
 ---
 
